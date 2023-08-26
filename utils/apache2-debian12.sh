@@ -63,7 +63,7 @@ EOF
 ln -s /etc/nginx/sites-available/001-clipbucket /etc/nginx/sites-enabled/
 
 # Restarting Apache service
-systemctl restart nginx > /dev/null
+systemctl restart apache2 > /dev/null
 
 echo -ne " OK"
 echo ""
