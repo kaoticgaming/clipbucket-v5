@@ -26,40 +26,18 @@ apt dist-upgrade -y > /dev/null 2>&1
 echo -ne " OK"
 
 echo ""
-echo ""
-echo "PHP versions availables : "
-echo " - 8.2 [Default]"
-echo " - 8.3"
-read -p "Which PHP version do you want to use ? [8.2] " READ_PHP_VERSION
-case ${READ_PHP_VERSION} in
-    "8.3")
-        echo ""
-        echo -ne "Configuring PHP 8.3 repo..."
-        apt install apt-transport-https lsb-release ca-certificates curl wget gnupg2 --yes > /dev/null 2>&1
-        wget -qO- https://packages.sury.org/php/apt.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/sury-php-x.x.gpg
-        echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list
-        apt update > /dev/null 2>&1
-        echo -ne " OK"
-        PHP_VERSION="8.3"
-        ;;
-    *)
-        PHP_VERSION="8.2"
-        ;;
-esac
-
-echo ""
 echo -ne "Installing requiered elements..."
-apt install php${PHP_VERSION}-fpm nginx-full mariadb-server git php${PHP_VERSION}-curl ffmpeg php${PHP_VERSION}-mysqli php${PHP_VERSION}-xml php${PHP_VERSION}-mbstring php${PHP_VERSION}-gd sendmail mediainfo --yes > /dev/null 2>&1
+apt install php8.1-fpm apache2 mariadb-server git php8.1-curl ffmpeg php8.1-mysqli php8.1-xml php8.1-mbstring php8.1-gd sendmail mediainfo --yes > /dev/null 2>&1
 echo -ne " OK"
 
 echo ""
-echo -ne "Updating PHP ${PHP_VERSION} configs..."
-sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 100M/g" /etc/php/${PHP_VERSION}/fpm/php.ini
-sed -i "s/post_max_size = 8M/post_max_size = 100M/g" /etc/php/${PHP_VERSION}/fpm/php.ini
-sed -i "s/max_execution_time = 30/max_execution_time = 7200/g" /etc/php/${PHP_VERSION}/fpm/php.ini
-sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 100M/g" /etc/php/${PHP_VERSION}/cli/php.ini
-sed -i "s/post_max_size = 8M/post_max_size = 100M/g" /etc/php/${PHP_VERSION}/cli/php.ini
-systemctl restart php${PHP_VERSION}-fpm
+echo -ne "Updating PHP php8.1 configs..."
+sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 100M/g" /etc/php/8.1/fpm/php.ini
+sed -i "s/post_max_size = 8M/post_max_size = 100M/g" /etc/php/8.1/fpm/php.ini
+sed -i "s/max_execution_time = 30/max_execution_time = 7200/g" /etc/php/8.1/fpm/php.ini
+sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 100M/g" /etc/php/8.1/cli/php.ini
+sed -i "s/post_max_size = 8M/post_max_size = 100M/g" /etc/php/8.1/cli/php.ini
+systemctl restart php8.1-fpm
 echo -ne " OK"
 
 echo ""
@@ -88,164 +66,28 @@ esac
 
 echo ""
 echo -ne "Configuring Nginx Vhost..."
-rm -f /etc/nginx/sites-enabled/default
-cat << 'EOF' > /etc/nginx/sites-available/001-clipbucket
-server {
-    listen 80;
-    server_name DOMAINNAME;
-
-    root /srv/http/clipbucket/upload/;
-    index index.php;
-
-    client_max_body_size 100M;
-
-    # set expiration of assets to MAX for caching
-    location ~* \.(ico|css|js)(\?[0-9]+)?$ {
-        expires max;
-        log_not_found off;
-    }
-
-    location ~* \.php$ {
-        fastcgi_pass unix:/var/run/php/phpPHPVERSION-fpm.sock;
-        fastcgi_index index.php;
-        fastcgi_split_path_info ^(.+\.php)(.*)$;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
-
-    location / {
-        if ($query_string ~ "mosConfig_[a-zA-Z_]{1,21}(=|\%3D)"){
-            rewrite ^/([^.]*)/?$ /index.php last;
-        }
-        rewrite ^/(.*)_v([0-9]+) /watch_video.php?v=$2&$query_string last;
-        rewrite ^/([a-zA-Z0-9-]+)/?$ /view_channel.php?uid=$1&seo_diret=yes last;
-    }
-
-    error_page 404 /404;
-    error_page 403 /403;
-    location /403 {
-        try_files $uri /403.php;
-    }
-    location /404 {
-        try_files $uri /404.php;
-    }
-
-    location /includes/ {
-        return 302 /404;
-    }
-
-    location /changelog/ {
-        return 302 /404;
-    }
-
-    location /video/ {
-        rewrite ^/video/(.*)/(.*) /watch_video.php?v=$1&$query_string last;
-        rewrite ^/video/([0-9]+)_(.*) /watch_video.php?v=$1&$query_string last;
-    }
-
-    location /videos/ {
-        rewrite ^/videos/(.*)/(.*)/(.*)/(.*)/(.*) /videos.php?cat=$1&sort=$3&time=$4&page=$5&seo_cat_name=$2 last;
-        rewrite ^/videos/([0-9]+) /videos.php?page=$1 last;
-        rewrite ^/videos/?$ /videos.php?$query_string last;
-    }
-
-    location /channels/ {
-        rewrite ^/channels/(.*)/(.*)/(.*)/(.*)/(.*) /channels.php?cat=$1&sort=$3&time=$4&page=$5&seo_cat_name=$2 last;
-        rewrite ^/channels/([0-9]+) /channels.php?page=$1 last;
-        rewrite ^/channels/?$ /channels.php last;
-    }
-
-    location /members/ {
-        rewrite ^/members/?$ /channels.php last;
-    }
-
-    location /users/ {
-        rewrite ^/users/?$ /channels.php last;
-    }
-
-    location /user/ {
-        rewrite ^/user/(.*) /view_channel.php?user=$1 last;
-    }
-
-    location /channel/ {
-        rewrite ^/channel/(.*) /view_channel.php?user=$1 last;
-    }
-
-    location /my_account {
-        rewrite ^/my_account /myaccount.php last;
-    }
-
-    location /page/ {
-        rewrite ^/page/([0-9]+)/(.*) /view_page.php?pid=$1 last;
-    }
-
-    location /search/ {
-        rewrite ^/search/result/?$ /search_result.php last;
-    }
-
-    location /upload {
-        rewrite ^/upload/?$ /upload.php last;
-    }
-
-    location /contact/ {
-        rewrite ^/contact/?$ /contact.php last;
-    }
-
-    location /categories/ {
-        rewrite ^/categories/?$ /categories.php last;
-    }
-
-    location /collections/ {
-        rewrite ^/collections/(.*)/(.*)/(.*)/(.*)/(.*) /collections.php?cat=$1&sort=$3&time=$4&page=$5&seo_cat_name=$2 last;
-        rewrite ^/collections/([0-9]+) /collections.php?page=$1 last;
-        rewrite ^/collections/?$ /collections.php last;
-    }
-
-    location /photos/ {
-        rewrite ^/photos/(.*)/(.*)/(.*)/(.*)/(.*) /photos.php?cat=$1&sort=$3&time=$4&page=$5&seo_cat_name=$2 last;
-        rewrite ^/photos/([0-9]+) /photos.php?page=$1 last;
-        rewrite ^/photos/?$ /photos.php last;
-    }
-
-    location /collection/ {
-        rewrite ^/collection/(.*)/(.*)/(.*) /view_collection.php?cid=$1&type=$2&page=$3 last;
-    }
-
-    location /item/ {
-        rewrite ^/item/(.*)/(.*)/(.*)/(.*) /view_item.php?item=$3&type=$1&collection=$2 last;
-    }
-
-    location /photo_upload {
-        rewrite ^/photo_upload/(.*) /photo_upload.php?collection=$1 last;
-        rewrite ^/photo_upload/?$ /photo_upload.php last;
-    }
-
-    location = /sitemap.xml {
-        rewrite ^(.*)$ /sitemap.php last;
-    }
-
-    location /signup {
-        rewrite ^/signup/?$ /signup.php last;
-    }
-
-    location /rss/ {
-        rewrite ^/rss/([a-zA-Z0-9].+)$ /rss.php?mode=$1&$query_string last;
-    }
-
-    location /list/ {
-        rewrite ^/list/([0-9]+)/(.*)?$ /view_playlist.php?list_id=$1 last;
-    }
-
-    location ~ /rss$ {
-        try_files $uri /rss.php;
-    }
-}
+rm -f /etc/apache2/sites-enabled/default
+cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket DOMAINNAME
+<VirtualHost *:80>
+  ServerName DOMAINNAME
+  DocumentRoot "/srv/http/clipbucket/"
+  
+  AllowEncodedSlashes On
+  
+  php_value upload_max_filesize 10000M
+  php_value post_max_size 10000M
+  
+  <Directory "/srv/http/clipbucket/">
+    AllowOverride all
+    Require all granted
+  </Directory>
+</VirtualHost>
 EOF
 
-sed -i "s/DOMAINNAME/${DOMAIN_NAME}/g" /etc/nginx/sites-available/001-clipbucket
-sed -i "s/PHPVERSION/${PHP_VERSION}/g" /etc/nginx/sites-available/001-clipbucket
-ln -s /etc/nginx/sites-available/001-clipbucket /etc/nginx/sites-enabled/
-systemctl restart nginx > /dev/null
+sed -i "s/DOMAINNAME/${DOMAIN_NAME}/g" /etc/apache2/sites-available/001-clipbucket
+sed -i "s/PHPVERSION/${PHP_VERSION}/g" /etc/apache2/sites-available/001-clipbucket
+ln -s /etc/apache2/sites-available/001-clipbucket /etc/apache2/sites-enabled/
+systemctl restart apache2 > /dev/null
 echo -ne " OK"
 
 echo ""
