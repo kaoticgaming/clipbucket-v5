@@ -1,15 +1,19 @@
 <div class="heading">
     <h2>ClipBucket V{$VERSION} {$STATE} Dashboard</h2>
 </div>
+{$active = 'class="active"'}
 <div class="row display-flex">
 	<div class="col-md-6">
 		<ul class="nav nav-tabs" style="height: 53px;">
-			<li class="active">
-				<a data-toggle="tab" href="#rcomments">
-					<h5><i class="glyphicon glyphicon-comment"></i> Recent Comments</h5>
-				</a>
-			</li>
-			<li>
+			{if $comments !== false}
+				<li {$active}>
+					<a data-toggle="tab" href="#rcomments">
+						<h5><i class="glyphicon glyphicon-comment"></i> Recent Comments</h5>
+					</a>
+				</li>
+			{$active = ''}
+			{/if}
+			<li {$active}>
 				<a data-toggle="tab" href="#todolist">
 					<h5><i class="glyphicon glyphicon-list-alt"></i> ToDo List</h5>
 				</a>
@@ -21,35 +25,35 @@
 			</li>
 		</ul>
 		<div class="tab-content" style="height: calc(100% - 72px);">
-			<div id="rcomments" class="tab-pane active" style="height: 100%; ">
-				<div class="widgetBox" style="height: 100%; min-height: 200px;">
-					{if $comments}
-					{foreach from=$comments item=comment}
-					{$userdetails = $userquery->get_user_details($comment.userid)}
-					<div class="itemdiv dialogdiv">
-						<div class="user">
-							<img alt="{display_clean($userdetails.username)}" title="{display_clean($userdetails.username)}" src="{$userquery->getUserThumb($userdetails,'small')}">
+			{if $comments}
+				<div id="rcomments" class="tab-pane active" style="height: 100%; ">
+					<div class="widgetBox" style="height: 100%; min-height: 200px;">
+						{foreach from=$comments item=comment}
+						{$userdetails = $userquery->get_user_details($comment.userid)}
+						<div class="itemdiv dialogdiv">
+							<div class="user">
+								<img alt="{display_clean($userdetails.username)}" title="{display_clean($userdetails.username)}" src="{$userquery->getUserThumb($userdetails,'small')}">
+							</div>
+							<div class="body">
+								<div class="time">
+									<i class="icon-time"></i>
+									<span class="green">{$comment.date_added|date_format}</span>
+								</div>
+								<div class="name">
+									<a href="#">{display_clean($comment.anonym_name)}</a>
+								</div>
+								<div class="text">{display_clean($comment.comment)|comment}</div>
+								<div class="tools">
+									<a href="{getCommentAdminLink($comment.type, $comment.type_id)}" class="btn btn-minier btn-info">
+										<i class="icon-only icon-share-alt"></i>
+									</a>
+								</div>
+							</div>
 						</div>
-						<div class="body">
-							<div class="time">
-								<i class="icon-time"></i>
-								<span class="green">{$comment.date_added|date_format}</span>
-							</div>
-							<div class="name">
-								<a href="#">{display_clean($comment.anonym_name)}</a>
-							</div>
-							<div class="text">{display_clean($comment.comment|comment)}</div>
-							<div class="tools">
-								<a href="{getCommentAdminLink($comment.type, $comment.type_id)}" class="btn btn-minier btn-info">
-									<i class="icon-only icon-share-alt"></i>
-								</a>
-							</div>
-						</div>
+						{/foreach}
 					</div>
-					{/foreach}
-					{/if}
 				</div>
-			</div>
+			{/if}
 			<div id="todolist" class="tab-pane"  style="height: 100%; ">
 				<div class="widgetBox" style="height: 100%;min-height: 200px;">
 					<div class="addTodo paddingRightSmall paddingLeftLarge marginBottomLarge">
@@ -135,7 +139,7 @@
 			{if config('enable_update_checker')=='1'}
 			<li class="right">
 				<a data-toggle="tab" href="#update">
-					<h5>{lang code='dashboard_update_status'} <span class="status-{get_update_status(true)}"></span></h5>
+					<h5>{lang code='dashboard_update_status'} <span class="status-{$update_checker_status}"></span></h5>
 				</a>
 			</li>
 			{/if}
@@ -143,40 +147,39 @@
 		<div class="tab-content nopadding">
 			<div id="550" class="tab-pane active">
 				<div class="widgetBox">
-					{display_changelog('550')}
+					{$changelog_550}
 				</div>
 			</div>
 			<div id="541" class="tab-pane">
 				<div class="widgetBox">
-					{display_changelog('541')}
+					{$changelog_541}
 				</div>
 			</div>
 			<div id="540" class="tab-pane">
 				<div class="widgetBox">
-					{display_changelog('540')}
+					{$changelog_540}
 				</div>
 			</div>
 			<div id="531" class="tab-pane">
 				<div class="widgetBox">
-					{display_changelog('531')}
+					{$changelog_531}
 				</div>
 			</div>
 			<div id="530-500" class="tab-pane">
 				<div class="widgetBox">
-					{display_changelog('530')}
+					{$changelog_530}
 				</div>
 			</div>
 			{if config('enable_update_checker')=='1'}
 			<div id="update" class="tab-pane">
 				<div class="widgetBox">
-					{get_update_status()}
+					{$update_checker_content}
 				</div>
 			</div>
 			{/if}
 		</div>
-		<!--		message version -->
-		<div>
-			{get_db_update_status()}
+		<div class="row row-no-gutters" style="margin-top:5px;">
+			{Update::getInstance()->displayGlobalSQLUpdateAlert()}
 		</div>
 	</div>
 </div>

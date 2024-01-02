@@ -27,7 +27,7 @@ function Fetch($name, $inside = false)
 //Simple Template Displaying Function
 function Template($template, $layout = true)
 {
-    global $admin_area, $cbtpl;
+    global $cbtpl;
     if ($layout) {
         $cbtpl->display(LAYOUT . DIRECTORY_SEPARATOR . $template);
     } else {
@@ -70,6 +70,7 @@ function Assign($name, $value)
  *
  * @param array $params
  * @return array
+ * @throws Exception
  */
 function cb_menu($params = null)
 {
@@ -83,24 +84,23 @@ function cb_menu($params = null)
 function display_it()
 {
     try {
-        global $ClipBucket, $__devmsgs, $breadcrumb;
-        if (is_array($__devmsgs)) {
-            assign('thebase', BASEDIR);
+        global $__devmsgs, $breadcrumb;
+        if( in_dev() ) {
+            assign('thebase', DirPath::get('root'));
             assign('__devmsgs', $__devmsgs);
         }
+
         $new_list = [];
-        foreach ($ClipBucket->template_files as $file) {
-            if (file_exists(LAYOUT . DIRECTORY_SEPARATOR . $file['file']) || is_array($file)) {
-                if ($ClipBucket->show_page || !$file['follow_show_page']) {
-                    if (!is_array($file)) {
-                        $new_list[] = $file;
-                    } else {
-                        if (isset($file['folder']) && file_exists($file['folder'] . DIRECTORY_SEPARATOR . $file['file'])) {
-                            $new_list[] = $file['folder'] . DIRECTORY_SEPARATOR . $file['file'];
-                        } else {
-                            $new_list[] = $file['file'];
-                        }
-                    }
+        foreach (ClipBucket::getInstance()->template_files as $file) {
+            if (ClipBucket::getInstance()->show_page || !$file['follow_show_page']) {
+                if( isset($file['folder']) ){
+                    $filepath = $file['folder'].DIRECTORY_SEPARATOR.$file['file'];
+                } else {
+                    $filepath = LAYOUT.DIRECTORY_SEPARATOR.$file['file'];
+                }
+
+                if( file_exists($filepath) ){
+                    $new_list[] = $filepath;
                 }
             }
         }
@@ -116,6 +116,9 @@ function display_it()
     }
 }
 
+/**
+ * @throws Exception
+ */
 function display_restorable_language_list()
 {
     $restorable_langs = get_restorable_languages();
@@ -124,6 +127,9 @@ function display_restorable_language_list()
     echo templateWithMsgJson('blocks/restorable_language_list.html');
 }
 
+/**
+ * @throws Exception
+ */
 function display_language_list()
 {
     $ll = Language::getInstance()->get_langs(false, true);
@@ -135,6 +141,9 @@ function display_language_list()
     echo templateWithMsgJson('blocks/language_list.html');
 }
 
+/**
+ * @throws Exception
+ */
 function display_language_edit()
 {
     $detail = Language::getInstance()->getLangById($_POST['language_id']);
@@ -142,9 +151,14 @@ function display_language_edit()
     echo templateWithMsgJson('blocks/language_edit.html');
 }
 
+/**
+ * @throws Exception
+ */
 function display_thumb_list($data)
 {
     assign('data', $data);
+    assign('vidthumbs', get_thumb($data,TRUE,'168x105','auto'));
+    assign('vidthumbs_custom', get_thumb($data,TRUE,'168x105','custom'));
     echo templateWithMsgJson('blocks/thumb_list.html');
 }
 
@@ -161,14 +175,14 @@ function display_subtitle_list($data)
 }
 
 //todO séparer en 2 fonctions
+/**
+ * @throws Exception
+ */
 function return_thumb_mini_list($data)
 {
     assign('data', $data);
-    return (templateWithMsgJson('blocks/thumb_mini_list.html'));
-}
+    assign('vidthumbs', get_thumb($data,TRUE,'168x105','auto'));
+    assign('vidthumbs_custom', get_thumb($data,TRUE,'168x105','custom'));
 
-function display_flash_player($data)
-{
-    assign('data', $data);
-    echo flashPlayer(['vdetails' => $data]);
+    return (templateWithMsgJson('blocks/thumb_mini_list.html'));
 }

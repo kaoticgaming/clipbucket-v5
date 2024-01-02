@@ -9,14 +9,14 @@ $myquery->Set_Website_Details('site_title', $title);
 $myquery->Set_Website_Details('site_slogan', $slogan);
 $myquery->Set_Website_Details('baseurl', $baseurl);
 
-if (file_exists(FILES_DIR . '/temp/install.me')) {
-    unlink(FILES_DIR . '/temp/install.me');
+if (file_exists(DirPath::get('temp') . 'install.me')) {
+    unlink(DirPath::get('temp') . 'install.me');
 }
 ?>
 
 <div class="nav_des clearfix">
     <div class="cb_container">
-        <h4 style="color:#fff;">ClipBucket <?php echo VERSION; ?> has been installed successfully !</h4>
+        <h4 style="color:#fff;">ClipBucketV5 - v<?php echo VERSION; ?> has been installed successfully !</h4>
     </div>
 </div>
 

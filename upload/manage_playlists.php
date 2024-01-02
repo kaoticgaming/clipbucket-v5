@@ -28,7 +28,7 @@ switch ($mode) {
         if (isset($_POST['delete_playlists'])) {
             $playlists = post('check_playlist');
 
-            if (count($playlists) > 0) {
+            if (!empty($playlists) && count($playlists) > 0) {
                 foreach ($playlists as $playlist) {
                     $cbvid->action->delete_playlist($playlist);
                 }
@@ -52,7 +52,10 @@ switch ($mode) {
 
         assign('mode', 'manage_playlist');
         //Getting List of available playlists
-        $playlists = $cbvid->action->get_playlists(['user' => user_id(), 'order' => 'playlists.date_added DESC']);
+        $playlists = $cbvid->action->get_playlists([
+            'user'  => user_id(),
+            'order' => 'playlists.date_added DESC'
+        ]);
         assign('playlists', $playlists);
         break;
 
@@ -115,6 +118,24 @@ switch ($mode) {
         }
         break;
 }
+
+if (in_dev()) {
+    $min_suffixe = '';
+} else {
+    $min_suffixe = '.min';
+}
+
+ClipBucket::getInstance()->addJS([
+    'tag-it' . $min_suffixe . '.js'                                => 'admin',
+    'pages/manage_playlist/manage_playlist' . $min_suffixe . '.js' => 'admin',
+    'init_default_tag/init_default_tag' . $min_suffixe . '.js'     => 'admin'
+]);
+ClipBucket::getInstance()->addCSS([
+    'jquery.tagit' . $min_suffixe . '.css'     => 'admin',
+    'tagit.ui-zendesk' . $min_suffixe . '.css' => 'admin'
+]);
+$available_tags = Tags::fill_auto_complete_tags('playlist');
+assign('available_tags', $available_tags);
 
 subtitle(lang('manage_playlist'));
 template_files('manage_playlists.html');

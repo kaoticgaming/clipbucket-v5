@@ -8,12 +8,13 @@ $admin_area = true;
 
 /* Config.Inc.php */
 include('common.php');
+ClipBucket::getInstance()->initAdminMenu();
 
 //Including Massuploader Class,
 require_once('classes/mass_upload.class.php');
 require_once('classes/ads.class.php');
 
-global $db, $ClipBucket, $Cbucket, $Smarty, $myquery;
+global $db, $Smarty, $myquery;
 
 $cbmass = new mass_upload();
 $ads_query = new AdsManager();
@@ -36,14 +37,15 @@ define('RESULTS', $admin_pages);
 Assign('admin_pages', $admin_pages);
 
 //Do No Edit Below This Line
-define('ADMIN_TEMPLATE', 'cb_2014');
-define('TEMPLATEDIR', BASEDIR . DIRECTORY_SEPARATOR . ADMINDIR . DIRECTORY_SEPARATOR . TEMPLATEFOLDER . DIRECTORY_SEPARATOR . ADMIN_TEMPLATE);
-define('SITETEMPLATEDIR', BASEDIR . DIRECTORY_SEPARATOR . TEMPLATEFOLDER . DIRECTORY_SEPARATOR . $row['template_dir']);
-define('TEMPLATEURL', DIRECTORY_SEPARATOR . ADMINDIR . DIRECTORY_SEPARATOR . TEMPLATEFOLDER . DIRECTORY_SEPARATOR . ADMIN_TEMPLATE);
-define('TEMPLATEURLFO', DIRECTORY_SEPARATOR . TEMPLATEFOLDER . DIRECTORY_SEPARATOR . $Cbucket->template);
+define('TEMPLATEDIR', DirPath::get('admin_area') . DIRECTORY_SEPARATOR . 'styles' . DIRECTORY_SEPARATOR . 'cb_2014');
+define('SITETEMPLATEDIR', DirPath::get('styles') . $row['template_dir']);
+define('TEMPLATEURL', DirPath::getUrl('admin_area') . 'styles' . DIRECTORY_SEPARATOR . 'cb_2014');
+define('TEMPLATEURLFO', DirPath::getUrl('styles') . ClipBucket::getInstance()->template);
 define('LAYOUT', TEMPLATEDIR . DIRECTORY_SEPARATOR . 'layout');
 define('TEMPLATE', $row['template_dir']);
 
+
+require_once TEMPLATEDIR . DIRECTORY_SEPARATOR . 'header.php';
 /*
 * Calling this function to check server configs
 * Checks : MEMORY_LIMIT, UPLOAD_MAX_FILESIZE, POST_MAX_SIZE, MAX_EXECUTION_TIME
@@ -52,7 +54,7 @@ define('TEMPLATE', $row['template_dir']);
 check_server_confs();
 
 Assign('baseurl', BASEURL);
-Assign('admindir', ADMINDIR);
+Assign('admindir', DirPath::getUrl('admin_area'));
 Assign('imageurl', TEMPLATEURL . '/images');
 Assign('image_url', TEMPLATEURL . '/layout');
 Assign('layout', TEMPLATEURL . '/layout');

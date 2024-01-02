@@ -3,12 +3,12 @@
 /**
  * functions related to database
  *
- * @throws \Exception
+ * @throws Exception
  */
-function db_select($query): array
+function db_select($query, $cached_time = -1, $cached_key = ''): array
 {
     global $db;
-    return $db->_select($query);
+    return $db->_select($query, $cached_time, $cached_key);
 }
 
 function cb_query_id($query): string
@@ -16,13 +16,6 @@ function cb_query_id($query): string
     return md5($query);
 }
 
-/**
- * Created by JetBrains PhpStorm.
- * User: Fawaz
- * Date: 8/26/13
- * Time: 3:51 PM
- * To change this template use File | Settings | File Templates.
- */
 function tbl($tbl): string
 {
     global $DBNAME;
@@ -43,43 +36,40 @@ function tbl($tbl): string
  * Format array into table fields
  *
  * @param $fields
- * @param bool $table
- * @return bool|string
+ * @return string
  */
-function table_fields($fields, $table = false)
+function table_fields($fields)
 {
+    if (empty($fields)) {
+        return '';
+    }
+
     $the_fields = '';
 
-    if ($fields) {
-        $array = $fields;
-        foreach ($array as $key => $_fields) {
+    $array = $fields;
+    foreach ($array as $key => $_fields) {
 
-            if (is_array($_fields)) {
-                foreach ($_fields as $field) {
-                    if ($the_fields) {
-                        $the_fields .= ', ';
-                    }
-                    $the_fields .= $key . '.' . $field;
-                }
-            } else {
-                $field = $_fields;
-
+        if (is_array($_fields)) {
+            foreach ($_fields as $field) {
                 if ($the_fields) {
                     $the_fields .= ', ';
                 }
-
-                if ($table) {
-                    $the_tbl = tbl($table) . '.';
-                } else {
-                    $the_tbl = '';
-                }
-
-                $the_fields .= $the_tbl . $field;
+                $the_fields .= $key . '.' . $field;
             }
+        } else {
+            $field = $_fields;
+
+            if ($the_fields) {
+                $the_fields .= ', ';
+            }
+
+            $the_tbl = '';
+
+            $the_fields .= $the_tbl . $field;
         }
     }
 
-    return $the_fields ? $the_fields : false;
+    return $the_fields;
 }
 
 /**
@@ -104,18 +94,14 @@ function cb_sql_table($table, $as = null)
     return false;
 }
 
-function table($table, $as = null)
-{
-    return cb_sql_table($table, $as);
-}
-
 /**
  * Alias function for function cb_select
  *
  * @param $query
  * @param int $cached_time
+ * @param string $cached_key
  * @return array
- * @throws \Exception
+ * @throws Exception
  */
 function select($query, $cached_time = -1, $cached_key = ''): array
 {
@@ -124,41 +110,14 @@ function select($query, $cached_time = -1, $cached_key = ''): array
 }
 
 /**
- * @param $version
- * @param $revision
- * @return bool
- */
-function check_need_upgrade($version, $revision): bool
-{
-    $folders = glob(DIR_SQL . '[0-9]**', GLOB_ONLYDIR);
-    $folder_version = '';
-    foreach ($folders as $folder) {
-        $folder_cur_version = basename($folder);
-        if ($folder_cur_version == $version) {
-            $folder_version = $folder;
-        } elseif ($folder_cur_version > $version && $folder_cur_version <= VERSION) {
-            return true;
-        }
-    }
-    $clean_folder = array_diff(scandir($folder_version), ['..', '.']);
-    foreach ($clean_folder as $file) {
-        $file_rev = (int)pathinfo($file)['filename'];
-        if ($file_rev > $revision && $file_rev <= REV) {
-            return true;
-        }
-    }
-    return false;
-}
-/**
- * @param $version
- * @param $revision
+ * @param $installed_plugin
  * @return bool
  */
 function check_need_plugin_upgrade($installed_plugin): bool
 {
     global $cbplugin;
     $detail = $cbplugin->get_plugin_details($installed_plugin['plugin_file'], $installed_plugin['plugin_folder']);
-    $files = glob(PLUG_DIR . DIRECTORY_SEPARATOR . $installed_plugin['plugin_folder'] . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'update' . DIRECTORY_SEPARATOR . '*.sql');
+    $files = glob(DirPath::get('plugins') . $installed_plugin['plugin_folder'] . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'update' . DIRECTORY_SEPARATOR . '*.sql');
     foreach ($files as $file) {
         $file_cur_version = pathinfo($file)['filename'];
         if ($file_cur_version > $installed_plugin['plugin_version'] && $file_cur_version <= $detail['version']) {
@@ -166,58 +125,6 @@ function check_need_plugin_upgrade($installed_plugin): bool
         }
     }
     return false;
-}
-
-/**
- * @param $version
- * @param $revision
- * @param $count
- * @return array|int
- */
-function get_files_to_upgrade($version, $revision, $count = false)
-{
-    //Get folders superior or equal to current version
-    $folders = array_filter(glob(DIR_SQL . '[0-9]**', GLOB_ONLYDIR)
-        , function ($dir) use ($version) {
-            return basename($dir) >= $version;
-        });
-
-    $files = [];
-
-    if ($version == '4.2-RC1-premium') {
-        $files[] = DIR_SQL . 'commercial' . DIRECTORY_SEPARATOR . '00001.sql';
-    }
-    foreach ($folders as $folder) {
-        //get files in folder minus . and .. folders
-        $clean_folder = array_diff(scandir($folder), ['..', '.']);
-        $files = array_merge(
-            $files,
-            //clean null files
-            array_filter(
-            //return absolute path
-                array_map(function ($file) use ($revision, $version, $folder) {
-                    $file_rev = (int)pathinfo($file)['filename'];
-                    $folder_version = basename($folder);
-                    return
-                        //if current version, then only superior revisions but still under current revision in changelog
-                        (
-                            ($file_rev > $revision && $folder_version == $version
-                                // or all files from superior version but still under current version in changelog
-                                || $folder_version > $version
-                            )
-                            && //check if version and revision or not superior to changelog
-                            ($folder_version == VERSION && $file_rev <= REV
-                                || $folder_version < VERSION
-                            )
-                        )
-                            ?
-                            $folder . DIRECTORY_SEPARATOR . $file
-                            : null;
-                }, $clean_folder)
-            )
-        );
-    }
-    return ($count ? count($files) : $files);
 }
 
 /**
@@ -233,7 +140,7 @@ function get_plugins_files_to_upgrade($installed_plugins, bool $count = false)
         $db_version = $installed_plugin['plugin_version'];
         $detail_verision = $cbplugin->get_plugin_details($installed_plugin['plugin_file'], $installed_plugin['plugin_folder'])['version'];
         //get files in update folder
-        $folder = PLUG_DIR . DIRECTORY_SEPARATOR . $installed_plugin['plugin_folder'] . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'update' . DIRECTORY_SEPARATOR;
+        $folder = DirPath::get('plugins') . $installed_plugin['plugin_folder'] . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'update' . DIRECTORY_SEPARATOR;
         $files = glob($folder . '*.sql');
         //filter files which are between db version and detail version
         $update_files = array_merge(
@@ -241,7 +148,7 @@ function get_plugins_files_to_upgrade($installed_plugins, bool $count = false)
             array_filter(
                 array_map(function ($file) use ($db_version, $detail_verision, $folder) {
                     $file_version = pathinfo($file)['filename'];
-                    return  ($file_version > $db_version && $file_version <= $detail_verision)
+                    return ($file_version > $db_version && $file_version <= $detail_verision)
                         ? $file
                         : null;
                 }, $files)
@@ -251,6 +158,9 @@ function get_plugins_files_to_upgrade($installed_plugins, bool $count = false)
     return ($count ? count($update_files) : $update_files);
 }
 
+/**
+ * @throws Exception
+ */
 function execute_sql_file($path): bool
 {
     $lines = file($path);
@@ -291,7 +201,7 @@ function execute_sql_file($path): bool
 }
 
 /**
- * @throws \Exception
+ * @throws Exception
  */
 function execute_migration_SQL_file($path): bool
 {
@@ -299,14 +209,13 @@ function execute_migration_SQL_file($path): bool
         return false;
     }
 
-
     global $db;
-    if (strpos($path,'plugin')!== false) {
+    if (strpos($path, 'plugin') !== false) {
         $plugin_folder = basename(dirname($path, 3));
         $regex = '/\/(\d{0,3}\.\d{0,3}\.\d{0,3})\.sql/';
         $match = [];
         preg_match($regex, $path, $match);
-        $sql = 'UPDATE ' . tbl('plugins') . ' SET plugin_version = \'' .  mysql_clean($match['1']) . '\' WHERE plugin_folder = \'' .$plugin_folder . '\'';
+        $sql = 'UPDATE ' . tbl('plugins') . ' SET plugin_version = \'' . mysql_clean($match['1']) . '\' WHERE plugin_folder = \'' . $plugin_folder . '\'';
     } else {
         $regex = '/\/(\d{0,3}\.\d{0,3}\.\d{0,3})\/(\d{5})\.sql/';
         $match = [];
@@ -327,7 +236,7 @@ function getRevisions(): array
         function ($dir) {
             return basename($dir);
         }
-        , array_filter(glob(DIR_SQL . '*', GLOB_ONLYDIR)
+        , array_filter(glob(DirPath::get('sql') . '*', GLOB_ONLYDIR)
         , function ($dir) {
             return basename($dir) >= '5.3.0' && basename($dir) <= '5.5.0';
         }
@@ -340,31 +249,10 @@ function getRevisions(): array
         '5.2.0'           => '1',
     ];
     foreach ($versions as $version) {
-        $changelog_url = BASEDIR . DIRECTORY_SEPARATOR . 'changelog' . DIRECTORY_SEPARATOR . str_replace('.', '', $version) . '.json';
+        $changelog_url = DirPath::get('changelog') . str_replace('.', '', $version) . '.json';
         $changelog = json_decode(file_get_contents($changelog_url, false), true);
         //after revision 168, version system should be already ready
         $revisions[$version] = min($changelog['revision'], 168);
     }
     return $revisions;
-}
-
-/**
- * @return array
- */
-function getVersions(): array
-{
-    $versions = [
-        '4.2-RC1-free'    => '1',
-        '4.2-RC1-premium' => '1',
-        '5.0.0'           => '1',
-        '5.1.0'           => '1',
-        '5.2.0'           => '1',
-    ];
-    $changelog_url = BASEDIR . DIRECTORY_SEPARATOR . 'changelog' . DIRECTORY_SEPARATOR;
-    $files = glob($changelog_url . '[0-9]*' . '.json');
-    foreach ($files as $file) {
-        $changelog = json_decode(file_get_contents($file), true);
-        $versions[$changelog['version']] = $changelog['revision'];
-    }
-    return $versions;
 }

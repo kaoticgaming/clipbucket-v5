@@ -39,6 +39,10 @@ function register_action($name, $type = null)
  */
 function ANCHOR($params)
 {
+    if( empty($params['place']) ){
+        return;
+    }
+
     global $Cbucket;
     //Getting List of codes to display at this anchor
     $codes = $Cbucket->get_anchor_codes($params['place']);
@@ -54,10 +58,22 @@ function ANCHOR($params)
 
     //Getting list of function that will be performed while calling achor
     $funcs = $Cbucket->get_anchor_function_list($params['place']);
+    global $current_anchor;
+    $current_anchor = $params['place'];
 
     if (!empty($funcs)) {
-        if (is_array($funcs)) {
-            foreach ($funcs as $func) {
+        foreach ($funcs as $func) {
+            if (is_array($func)) {
+                $class = $func['class'];
+                $method = $func['method'];
+                if (method_exists($class, $method)) {
+                    if (isset($params['data'])) {
+                        $class::$method($params['data']);
+                    } else {
+                        $class::$method();
+                    }
+                }
+            } else {
                 if (function_exists($func)) {
                     if (isset($params['data'])) {
                         $func($params['data']);
@@ -65,12 +81,6 @@ function ANCHOR($params)
                         $func();
                     }
                 }
-            }
-        } else {
-            if ($params['data']) {
-                $funcs($params['data']);
-            } else {
-                $funcs();
             }
         }
     }
@@ -110,27 +120,31 @@ function register_anchor($name, $type = null)
  * some place, you can simple register function that will be execute where anchor points are
  * placed
  *
- * @param      $name
+ * @param      $method
  * @param null $type
+ * @param null $class
+ * @return bool
  */
-function register_anchor_function($name, $type = null)
+function register_anchor_function($method, $type, $class = null): bool
 {
     global $Cbucket;
-    if (is_array($name)) {
-        foreach ($name as $key => $naam) {
-            if (is_array($naam)) {
-                foreach ($naam as $name) {
-                    $Cbucket->anchor_function_list[$name][] = $key;
-                }
-            } else {
-                $Cbucket->anchor_function_list[$naam][] = $key;
-            }
+
+    if( empty($type) ){
+        if( in_dev() ){
+            error_log('register_anchor_function '.$method.' must have a type specified');
         }
-    } else {
-        if ($type != null) {
-            $Cbucket->anchor_function_list[$type][] = $name;
-        }
+        return false;
     }
+
+    if (empty($class)) {
+        $Cbucket->anchor_function_list[$type][] = $method;
+    } else {
+        $Cbucket->anchor_function_list[$type][] = [
+            'class'    => $class
+            , 'method' => $method
+        ];
+    }
+    return true;
 }
 
 /**
@@ -148,6 +162,10 @@ function register_anchor_function($name, $type = null)
  */
 function add_admin_menu($header, $name, $link, $plug_folder = false, $is_player_file = false)
 {
+    if (NEED_UPDATE) {
+        return;
+    }
+
     global $Cbucket;
 
     if ($plug_folder) {
@@ -168,7 +186,7 @@ function add_admin_menu($header, $name, $link, $plug_folder = false, $is_player_
         ]
     ];
 
-    $Cbucket->addMenuAdmin($menu_plugin);
+    ClipBucket::getInstance()->addMenuAdmin($menu_plugin);
 }
 
 /**
@@ -278,30 +296,30 @@ function register_after_video_upload_action($func)
  * Function used to add actions that will be performed
  * when video is going to play, it will check which player to use
  * what type to use and what to do
- * @param string Function name
+ * @param string $method Function name
  */
-function register_actions_play_video($func)
+function register_actions_play_video(string $method, string $class = null): bool
 {
+    if (empty($method)) {
+        return false;
+    }
+
     global $Cbucket;
-    $Cbucket->actions_play_video[] = $func;
+    if (empty($class)) {
+        $Cbucket->actions_play_video[] = $method;
+    } else {
+        $Cbucket->actions_play_video[] = [
+            'class'    => $class
+            , 'method' => $method
+        ];
+    }
+    return true;
 }
 
 function register_collection_delete_functions($func)
 {
     global $cbcollection;
     $cbcollection->collection_delete_functions[] = $func;
-}
-
-/**
- * Function used to add links in admin area
- *
- * @param array $array
- */
-function add_admin_link($array)
-{
-    $area = $array['area'];
-    $title = $array['title'];
-    $link = $array['link'];
 }
 
 /**
@@ -470,7 +488,7 @@ function plug_url($file, $dir, $admin_base = false)
 {
     $url = 'plugin.php?folder=' . $dir . '&file=' . $file;
     if ($admin_base) {
-        $url = ADMIN_BASEURL . '/' . $url;
+        $url = DirPath::getUrl('admin_area') . '' . $url;
     }
     return $url;
 }

@@ -1,38 +1,34 @@
 <?php
-/**
- * File: Channels
- * Description: Used to display list of channels (users)
- * @author: Arslan Hassan, Saqib Razzaq
- * @since: 2007
- * @website: clip-bucket.com
- * @modified: Feb 26, 2016 ClipBucket 2.8.1 [ Saqib Razzaq ]
- */
+define('THIS_PAGE', 'channels');
 
-define("THIS_PAGE", 'channels');
-define("PARENT_PAGE", 'channels');
 require 'includes/config.inc.php';
-$pages->page_redir();
-$userquery->perm_check('view_channels', true);
-global $pages;
+
+pages::getInstance()->page_redir();
+userquery::getInstance()->perm_check('view_channels', true);
+
+if( !isSectionEnabled('channels') ){
+    redirect_to(BASEURL);
+}
+
 $assign_arry = [];
 $sort = $_GET['sort'];
 $u_cond = ['category' => mysql_clean($_GET['cat']), 'date_span' => mysql_clean($_GET['time'])];
 switch ($sort) {
-    case "most_recent":
+    case 'most_recent':
     default:
-        $u_cond['order'] = " doj DESC ";
+        $u_cond['order'] = ' doj DESC';
         break;
-    case "most_viewed":
-        $u_cond['order'] = " profile_hits DESC ";
+    case 'most_viewed':
+        $u_cond['order'] = ' profile_hits DESC';
         break;
-    case "featured":
-        $u_cond['featured'] = "yes";
+    case 'featured':
+        $u_cond['featured'] = 'yes';
         break;
-    case "top_rated":
-        $u_cond['order'] = " rating DESC";
+    case 'top_rated':
+        $u_cond['order'] = ' rating DESC';
         break;
-    case "most_commented":
-        $u_cond['order'] = " total_comments DESC";
+    case 'most_commented':
+        $u_cond['order'] = ' total_comments DESC';
         break;
 }
 $page = mysql_clean($_GET['page']);
@@ -55,11 +51,8 @@ $total_pages = count_pages($counter, CLISTPP);
 //Pagination
 $extra_params = null;
 $tag = '<li><a #params#>#page#</a><li>';
-$pages->paginate($total_pages, $page, $link, $extra_params, $tag);
-if (!$subtitle) {
-    $subtitle = 'channels';
-}
-subtitle(lang($subtitle));
+pages::getInstance()->paginate($total_pages, $page, null, $extra_params, $tag);
+subtitle(lang('channels'));
 Assign('users', $users);
 template_files('channels.html');
 display_it();

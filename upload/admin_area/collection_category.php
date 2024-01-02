@@ -1,15 +1,16 @@
 <?php
-global $userquery, $pages, $cbcollection;
-require_once '../includes/admin_config.php';
+define('THIS_PAGE', 'collection_category');
 
-$userquery->admin_login_check();
-$userquery->login_check('video_moderation');
-$pages->page_redir();
+global $cbcollection, $breadcrumb;
+require_once dirname(__FILE__, 2) . '/includes/admin_config.php';
+
+userquery::getInstance()->admin_login_check();
+userquery::getInstance()->login_check('video_moderation');
+pages::getInstance()->page_redir();
 
 /* Generating breadcrumb */
-global $breadcrumb;
 $breadcrumb[0] = ['title' => lang('collections'), 'url' => ''];
-$breadcrumb[1] = ['title' => lang('manage_categories'), 'url' => ADMIN_BASEURL . '/collection_category.php'];
+$breadcrumb[1] = ['title' => lang('manage_categories'), 'url' => DirPath::getUrl('admin_area') . 'collection_category.php'];
 
 //Form Processing
 if (isset($_POST['add_category'])) {
@@ -34,7 +35,7 @@ if (isset($_GET['category'])) {
 
     assign('cat_details', $cat_details);
 
-    $breadcrumb[2] = ['title' => 'Editing : ' . display_clean($cat_details['category_name']), 'url' => ADMIN_BASEURL . '/collection_category.php?category=' . display_clean($_GET['category'])];
+    $breadcrumb[2] = ['title' => 'Editing : ' . display_clean($cat_details['category_name']), 'url' => DirPath::getUrl('admin_area') . 'collection_category.php?category=' . display_clean($_GET['category'])];
 }
 
 //Delete Category
@@ -61,5 +62,14 @@ assign('total', count($cats));
 
 subtitle('Collection Category Manager');
 Assign('msg', @$msg);
+
+if(in_dev()){
+    $min_suffixe = '';
+} else {
+    $min_suffixe = '.min';
+}
+ClipBucket::getInstance()->addAdminJS(['jquery-ui-1.13.2.min.js' => 'global']);
+ClipBucket::getInstance()->addAdminJS(['pages/collection_category/collection_category'.$min_suffixe.'.js' => 'admin']);
+
 template_files('collection_category.html');
 display_it();

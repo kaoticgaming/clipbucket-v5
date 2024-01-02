@@ -11,12 +11,11 @@
 							{lang code="bits_color_compatibility"}
 						</span>
 					{/if}
-					<div id="cb_player" class="cb_player">
-						{FlashPlayer vdetails=$video width='100%' height='100%'}
-					</div><!-- cb_player end -->
+					<div id="cb_player" class="cb_player no_select">
+						{show_player vdetails=$video}
+					</div>
 				{/if}
 			</div>
-			<!-- end of player-holder -->
 			{if config("enable_advertisement") == "yes"}
 			<div class="clearfix leaderboard-ad ad">
 				{AD place='ad_728x90'}
@@ -29,11 +28,11 @@
 
 						{if isSectionEnabled('channels')}
 							<a href="{$userquery->profile_link($video)}" class="avatar">
-								<img src="{$userquery->avatar($video,'m',user_id())}" class="img-responsive">
+								<img src="{$userquery->avatar($video,'m',user_id())}" class="img-responsive no_select"/>
 							</a>
 						{else}
 							<span class="avatar">
-								<img src="{$userquery->avatar($video,'m',user_id())}" class="img-responsive">
+								<img src="{$userquery->avatar($video,'m',user_id())}" class="img-responsive no_select"/>
 							</span>
 						{/if}
 
@@ -44,7 +43,6 @@
 							{display_clean($video.username)}
 						{/if}
 						</h2>
-						<!-- look at  -->
 						<div class="views-counter">
 							<span>
 								{if $Cbucket->configs.video_round_views=='yes'}
@@ -67,7 +65,7 @@
 							{/if}
 						</div>
 						<div class="clearfix subscribe-col col-lg-6 col-md-6 col-sm-6 col-xs-12">
-							{if $video.userid != user_id()}
+							{if user_id() && $video.userid != user_id()}
 								{if $userquery->is_subscribed($video.userid,user_id())}
 									<button onclick="_cb.unsubscribeToChannel('{$video.userid}','unsubscribe_user');" class="btn btn-subscribe btn-primary subs_{$video.userid}">
 										{lang code="unsubscribe"}
@@ -85,7 +83,7 @@
 									<span class="caret"></span>
 								</button>
 								<ul class="dropdown-menu pull-right" role="menu" aria-labelledby="dropdownMenu1">
-								{$files = get_video_files($vdo,true,true)}
+								{$files = get_video_files($vdo,true)}
 								{foreach $files as $file}
 									{$quality = explode('-',$file)}
 									{$quality = array_reverse($quality)}
@@ -108,55 +106,61 @@
 						<li class="active">
 							<a href="#cb-item-info" data-toggle="tab"><span class="icon-info"></span>{lang code='info'}</a>
 						</li>
+						{if
+							(userquery::getInstance()->hasUserLevelAccess(4, 'view_video') ||
+							(config('enable_video_internal_sharing') == 'yes' && user_id()))
+							&& (
+								config('enable_video_link_sharing') == 'yes' ||
+								(config('enable_video_social_sharing') == 'yes' && ($vdo.broadcast == 'public' || ($vdo.broadcast == 'unlisted' && $vdo.video_password == ''))) ||
+								(config('video_embed') == 1 && $vdo.allow_embedding=='yes' && ($vdo.broadcast == 'public' || ($vdo.broadcast == 'unlisted' && $vdo.video_password == '')))
+							)
+						}
 						<li>
 							<a href="#cb-item-share" data-toggle="tab"><span class="icon-share"></span>{lang code='share_embed'}</a>
 						</li>
+						{/if}
+						{if user_id()}
 						<li>
 							<a href="#cb-item-addto" data-toggle="tab"><span class="icon-plusrounded"></span>{lang code='add_to'}</a>
 						</li>
 						<li>
 							<a href="#cb-item-report" data-toggle="tab"><span class="icon-flag"></span>{lang code='report_this'}</a>
 						</li>
+						{/if}
 					</ul>
 					<div class="tab-content clearfix">
 						<div class="tab-pane fade in clearfix active" id="cb-item-info">
 							<div class="clearfix watch-vid-details">
+								{if $video.age_restriction }<p class="age_restriction">{sprintf(lang('access_forbidden_under_age'),$video.age_restriction)}</p>{/if}
 								<p style="white-space: pre-line;">{display_clean(AutoLinkUrls($video.description|unescape:"html"))}</p>
 								<ul class="clearfix desc-list">
 									<li><strong>{lang code='category'}</strong>:&nbsp;{$vdo.category|categories:video}</li>
 									<li><strong>{lang code='duration'}</strong>:&nbsp;{if $video.duration>1}{$video.duration|SetTime}{else}00:00{/if}</li>
 									<li><strong>{lang code='date'}</strong>:&nbsp; {$video.date_added|nicetime}</li>
 									<li>
-										<strong class="pull-left">{lang('tags')}:&nbsp;&nbsp;</strong>
-										<span class="pull-left">{display_clean($vdo.tags)|tags:videos}</span>
+										<strong class="pull-left" id="label_tags">{lang('tags')}:&nbsp;&nbsp;</strong>
+										<input type="hidden" id="tags" value="{$vdo.tags}">
+										<ul id="list_tags" style="border: 0;"></ul>
 									</li>
 								</ul>
 							</div>
 						</div>
-
+						{if
+							(userquery::getInstance()->hasUserLevelAccess(4, 'view_video') ||
+							(config('enable_video_internal_sharing') == 'yes' && user_id()))
+							&& (
+								config('enable_video_link_sharing') == 'yes' ||
+								(config('enable_video_social_sharing') == 'yes' && ($vdo.broadcast == 'public' || ($vdo.broadcast == 'unlisted' && $vdo.video_password == ''))) ||
+								(config('video_embed') == 1 && $vdo.allow_embedding=='yes' && ($vdo.broadcast == 'public' || ($vdo.broadcast == 'unlisted' && $vdo.video_password == '')))
+							)
+						}
 						<div class="tab-pane fade in clearfix" id="cb-item-share">
-							<ul class="social-share">
-								<li>
-									<a href="http://www.facebook.com/sharer/sharer.php?s=100&p[url]={video_link($video)|urlencode}&p[images][0]={get_thumb vdetails=$video}&p[title]={$video.title|title|urlencode}&p[summary]={$video.description|description|urlencode}" target="_blank" class="btn-fb icon-facebook">
-										<span>Facebook</span>
-									</a>
-								</li>
-								<li>
-									<a href="https://twitter.com/share" target="_blank" class="btn-tw icon-twitter">
-										<span>Twitter</span>
-									</a>
-								</li>
-								<li>
-									<a href="https://plus.google.com/share?url={urlencode(video_link($video))}" target="_blank" class="btn-gplus icon-gplus">
-										<span>Google Plus</span>
-									</a>
-								</li>
-							</ul>
 							{show_share_form id=$vdo.videoid type=video}
 						</div>
+						{/if}
 
-						<div class="tab-pane fade in clearfix custom-elements" id="cb-item-addto">
 						{if user_id()}
+						<div class="tab-pane fade in clearfix custom-elements" id="cb-item-addto">
 							<div class="clearfix btn-big">
 								<div id="video_action_result_cont"></div>
 								<a id="addfav" class="btn btn-block btn-primary" href="javascript:void(0);" onclick="_cb.add_to_favNew('video','{$vdo.videoid}');">{lang code='add_to_my_favorites'}</a>
@@ -179,48 +183,48 @@
 								</div>
 							</div>
 							{/if}
-						{/if}
 						</div>
 
 						<div class="tab-pane fade in clearfix custom-elements" id="cb-item-report">
 							<h2>{lang code='report_video'}</h2>
 							{show_flag_form id=$vdo.videoid type=video}
 						</div>
+						{/if}
 					</div>
 				</div>
 			</section>
 
-			<div class="clearfix comments-block">
-				{if $myquery->is_commentable($vdo,'v')}
+			{if config('display_video_comments') == 'yes'}
+				<div class="clearfix comments-block">
+					{if $myquery->is_commentable($vdo,'v')}
+					<div class="collectionComments addComment">
+						<h2>
+							{if $vdo.comments_count <= 1 }
+								{lang code='comment'}
+							{else}
+								{{lang code='comments'} }
+							{/if}
+							(<span id="comment_count">{$vdo.comments_count}</span>)
+						</h2>
+						<span id="show-comments" class="icon-down-arrow" title="{lang code='show_comments'}"></span>
+						<span id="hide-comments" class="icon-up-arrow" title="{lang code='hide_comments'}" style="display:none;"></span>
 
-				<div class="collectionComments addComment">
-					<h2>
-						{if $vdo.comments_count <= 1 }
-							{lang code='comment'}
-						{else}
-							{{lang code='comments'} }
-						{/if}
-						({$vdo.comments_count})
-					</h2>
-					<span id="show-comments" class="icon-down-arrow" title="{lang code='show_comments'}"></span>
-					<span id="hide-comments" class="icon-up-arrow" title="{lang code='hide_comments'}" style="display:none;"></span>
+						<div id="bloc-comment" style="display:none;">
+							{include file="$style_dir/blocks/comments/add_comment.html" id=$vdo.videoid type=v}
 
-					<div id="bloc-comment" style="display:none;">
-						{include file="$style_dir/blocks/comments/add_comment.html" id=$vdo.videoid type=v}
-
-						<div class="userComments">
-							<ul id="userCommentsList" style="margin-left:-40px;">
-							</ul>
+							<div class="userComments">
+								<ul id="userCommentsList" style="margin-left:-40px;">
+								</ul>
+							</div>
 						</div>
 					</div>
+					{else}
+					<div align="center" class="moveL no_comments">
+						{sprintf(lang('comment_disabled_for'),strtolower(lang('video')))}
+					</div>
+					{/if}
 				</div>
-
-				{else}
-				<div align="center" class="moveL no_comments">
-					{lang code='comm_disabled_for_vid'}
-				</div>
-				{/if}
-			</div>
+			{/if}
 		</section>
 		<aside id="sidebar">
 			{if config("enable_advertisement") == "yes"}
@@ -269,7 +273,9 @@
 					{/section}
 				</div>
 					{if $total_items > 10}
+				<div style="text-align:center;margin-bottom:5px;">
 				<button class="btn btn-primary text-centre" id="playlist-pull" dataList={$cur_playlist} dataLimit="10" dataHit="2">{lang code='load_more'}</button>
+				</div>
 					{/if}
 				{else}			    	
 					{if $videos}
@@ -292,124 +298,11 @@
 
 <script>
 	/*Cookie based comments backup start*/
-	var current_video = "{$video.videoid}",
-	cookieToSave = 'comment_data_u'+userid+"v"+current_video,
-	commentDataCheck = $.cookie(cookieToSave);
-
-	if (commentDataCheck !== null) {
-		$('#comment_box').val(commentDataCheck);
-	}
-	$('#comment_box').on('keyup', function() {
-		var comment_data = $('#comment_box').val();
-        set_cookie_secure(cookieToSave, comment_data);
-	});
-
-	$('#add_comment_button').on("click",function(){
-        set_cookie_secure(cookieToSave, null);
-	});
-	/*Cookie based comments backup end*/
-
+	var current_video = "{$video.videoid}";
 	var playlist_total = "{$total_items}";
-	$('#ShareUsers').on("keyup",function(){
-	    if( $('#ShareUsers').val() === "" )
-	        return;
-
-		var typed = $(this).val();
-		$.ajax({
-			url: '/ajax.php',
-			type: 'post',
-			dataType: 'html',
-			data: {
-				"mode":'user_suggest',
-				"typed": typed
-			},
-			beforeSend: function() {
-			},
-
-			success: function(data) {
-				$('#suggested_users').html('');
-				var jsoned = $.parseJSON(data);
-				$( jsoned.matching_users ).each(function( index, element ) {
-					$('#suggested_users').append("<option label='"+element+"' value='"+element+"'>");
-				});
-			}
-		});
-	});
-
-	/*Playlist load more start*/
-	var playlist_total = "{$total_items}";
-	$('#playlist-pull').on("click",function(){
-		var __this = $(this);
-		loadHit = $(this).attr('dataHit');
-		loadLimit = $(this).attr('dataLimit');
-		playlist = $(this).attr('dataList');
-
-		$.ajax({
-			url: '/ajax/watch.php',
-			type: 'post',
-			dataType: 'html',
-			data: {
-				"mode":'playlistMore',
-				"loadHit":loadHit,
-				"loadLimit":loadLimit,
-				"playlist": playlist
-			},
-			beforeSend: function() {
-				$(__this).text(lang_loading);
-			},
-
-			success: function(data) {
-				var loaded = loadLimit * loadHit;
-				if (playlist_total <= loaded) {
-					$(__this).remove();
-				} else {
-					$(__this).text(lang_load_more);
-				}
-				if (data == 'none') {
-					$('#playlist-pull').remove();
-				}
-				$(data).appendTo('#playlist_items').fadeIn('slow');
-				$('#playlist-pull').attr('dataHit', parseInt(loadHit) + 1);
-			}
-		});
-	});
-	/*Playlist load more end*/
-
-	var aspect_ratio = 1.77778
-	var $cb_player = $("#cb_player");
-
-	$(document).ready(function()
-	{
-        getAllComments('v','{$vdo.videoid}','{$vdo.last_commented}',1,'{$vdo.comments_count}','{$object_type}');
-
-		$cb_player.height( $cb_player.width() / aspect_ratio );
-
-		var videoInfo = $("#videoDescription").text();
-		var newInfo = videoInfo.replace(/(((https?:\/\/)|([\s\t]))(www.)?([a-z0-9]+)\.[a-z]+)/g, '<a href="$1">$1</a>');
-		$("#videoDescription").html(newInfo);
-
-		$("#reportVideo").on({
-			click : function(e){
-				e.preventDefault();
-				$("#flag_item").show();
-			}
-		});
-
-		$("#subscribeUser").on({
-			click: function(e){
-				e.preventDefault();
-				_cb.subscribeToChannelNew('{$video.userid}','subscribe_user');
-			}
-		});
-		var adHtml = $('.ad-holder').html();
-		if(adHtml<1){
-			$('.ad-holder').remove();
-		}
-	});
-
-	var resizePlayer = _cb.debounce(function() {
-		$cb_player.height( $cb_player.width() / aspect_ratio );
-	}, 500, false);
-
-	$(window).resize(resizePlayer);
+	var videoid='{$vdo.videoid}';
+	var last_commented = '{$vdo.last_commented}';
+	var comments_count = '{$vdo.comments_count}';
+	var object_type= '{$object_type}';
+	var userid= '{$video.userid}';
 </script>

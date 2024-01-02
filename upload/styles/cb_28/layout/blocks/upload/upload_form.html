@@ -7,9 +7,6 @@
     <div class="row">
         <div class="col-md-8">
             <div id="updateVideoInfo">
-                <fieldset>
-                    <legend>{$requiredFields.group_name}</legend>
-                </fieldset>
                 <div class="requiredFields">
                   {foreach $requiredFields.fields as $field}
                         <div class="form-group">
@@ -25,6 +22,9 @@
                             <label for="{$field.id}">{$field.title}</label>
                             {$formObj->createField($field)}
                         {/if}
+                            {if $field.id == 'tags'}
+                            <ul id="list_tags"></ul>
+                            {/if}
                         </div>
                     {/foreach}
                 </div>

@@ -1,17 +1,23 @@
 <?php
 define('THIS_PAGE', 'manage_playlists');
 
-require_once '../includes/admin_config.php';
+require_once dirname(__FILE__, 2) . '/includes/admin_config.php';
 
-global $userquery, $pages, $cbvid, $eh;
+global $userquery, $pages, $cbvid, $eh, $Cbucket;
 
 $userquery->admin_login_check();
 $pages->page_redir();
 
 /* Generating breadcrumb */
 global $breadcrumb;
-$breadcrumb[0] = ['title' => lang('videos'), 'url' => ''];
-$breadcrumb[1] = ['title' => lang('manage_playlists'), 'url' => ADMIN_BASEURL . '/manage_playlist.php'];
+$breadcrumb[0] = [
+    'title' => lang('videos'),
+    'url'   => ''
+];
+$breadcrumb[1] = [
+    'title' => lang('manage_playlists'),
+    'url'   => DirPath::getUrl('admin_area') . 'manage_playlist.php'
+];
 
 $mode = $_GET['mode'];
 
@@ -30,7 +36,7 @@ switch ($mode) {
         if (isset($_POST['delete_playlists'])) {
             $playlists = post('check_playlist');
 
-            if (count($playlists) > 0) {
+            if (!empty($playlists) && count($playlists) > 0) {
                 foreach ($playlists as $playlist) {
                     $cbvid->action->delete_playlist($playlist);
                 }
@@ -145,6 +151,24 @@ switch ($mode) {
         }
         break;
 }
+ClipBucket::getInstance()->addAdminJS(['jquery-ui-1.13.2.min.js' => 'admin']);
+if (in_dev()) {
+    $min_suffixe = '';
+} else {
+    $min_suffixe = '.min';
+}
+ClipBucket::getInstance()->addAdminJS([
+    'tag-it' . $min_suffixe . '.js'                            => 'admin',
+    'advanced_search/advanced_search' . $min_suffixe . '.js'   => 'admin',
+    'init_default_tag/init_default_tag' . $min_suffixe . '.js' => 'admin'
+]);
+
+ClipBucket::getInstance()->addAdminCSS([
+    'jquery.tagit' . $min_suffixe . '.css'     => 'admin',
+    'tagit.ui-zendesk' . $min_suffixe . '.css' => 'admin'
+]);
+$available_tags = Tags::fill_auto_complete_tags('playlist');
+assign('available_tags',$available_tags);
 
 //- manage play front end
 template_files('manage_playlist.html');

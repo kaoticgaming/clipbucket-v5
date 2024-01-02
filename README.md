@@ -13,10 +13,10 @@ You can start a fully dedicated video sharing website or photo sharing websites 
 
 # History
 ClipBucket <a href="https://github.com/arslancb/clipbucket">original repository</a> has been slowly dying since the release 4.1 (May 2018) and has been archived on December 2022.<br/>
-<a href="https://github.com/MacWarrior/clipbucket-v5">ClipBucket V5</a> was created on 2016 by <a href="https://github.com/MacWarrior">MacWarrior</a> and is part of <a href="https://oxygenz.fr/en/">Oxygenz</a>'s projects since 2023
+<a href="https://github.com/MacWarrior/clipbucket-v5">ClipBucket V5</a> was created on 2016 by <a href="https://github.com/MacWarrior">MacWarrior</a> and is part of <a href="https://oxygenz.fr/en/" target="_blank">Oxygenz</a>'s projects since 2023
 
 # Why <a href="https://github.com/MacWarrior/clipbucket-v5">ClipBucket V5</a>
-- PHP 7.0 - 8.2+ compatibility
+- PHP 7.0 - 8.3+ compatibility
 - SQL strict mode compatibility
 - MySQL 8+ compatibility
 - UHD video resolutions support
@@ -39,12 +39,12 @@ All you need is here : <a href="https://github.com/MacWarrior/clipbucket-v5/tree
 ### Advanced users
 <i>“Your path you must decide.”</i><br/> 
 Required : MySQL 5.6+ / MariaDB 10.3+ ; PHP 7.0+ (+ modules : mysqli, curl, xml, mbstring, gd) ; FFmpeg 3+ ; mediainfo ; sendmail<br/>
-Recommended : MariaDB 10.3+ ; PHP 8.1+ ; FFmpeg 4.3+
+Recommended : MariaDB 10.3+ ; PHP 8.2+ ; FFmpeg 4.3+
 Optionnal : Git<br/>
 <i>Only stable versions have been tested, mainly on Debian</i>
 
 # DB auto-update system
-On version 5.5.0 (WIP), Revision 169, a new DB update system has been implemented, since then, you can easily update your DB from any version since 5.3.0 to any new version/revision.<br/>
+On version 5.5.0 (WIP), Revision 169, a new DB update system has been implemented, since then, you can easily update your DB from any version since 4.2 RC1 to any new version/revision.<br/>
 Update your sources, log in and follow instructions displayed.
 
 # Updating from ClipBucket 4.2

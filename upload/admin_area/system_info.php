@@ -1,13 +1,15 @@
 <?php
-require_once '../includes/admin_config.php';
+define('THIS_PAGE', 'system_info');
 
-global $db, $userquery, $myquery;
-$userquery->admin_login_check();
+require_once dirname(__FILE__, 2) . '/includes/admin_config.php';
+
+global $db, $myquery;
+userquery::getInstance()->admin_login_check();
 
 /* Generating breadcrumb */
 global $breadcrumb;
 $breadcrumb[0] = ['title' => lang('tool_box'), 'url' => ''];
-$breadcrumb[1] = ['title' => lang('system_info'), 'url' => ADMIN_BASEURL . '/cb_server_conf_info.php'];
+$breadcrumb[1] = ['title' => lang('system_info'), 'url' => DirPath::getUrl('admin_area') . 'cb_server_conf_info.php'];
 
 /** hosting */
 $post_max_size = ini_get('post_max_size');
@@ -59,7 +61,7 @@ assign('php_info', $phpinfo);
 
 /** php info cli */
 $row = $myquery->Get_Website_Details();
-$cmd = $row['php_path'] . ' ' . BASEDIR . DIRECTORY_SEPARATOR . 'phpinfo.php';
+$cmd = $row['php_path'] . ' ' . DirPath::get('root') . 'phpinfo.php';
 exec($cmd, $exec_output);
 assign('cli_php_info', implode('<br/>',$exec_output));
 
@@ -68,11 +70,13 @@ $memory_limit_cli = 0;
 $upload_max_filesize_cli = 0;
 $max_execution_time_cli = 1;
 $phpVersion = 0;
+
+$extensionsCLI = [];
 if (empty($exec_output)) {
     e(lang('php_cli_not_found'));
 } else {
     $reg = '/^(\w*) => (-?\w*).*$/';
-    $regVersion = '/^(\w* \w*) => (.*)$/';
+    $regVersion = '/(\w* \w*) => (.*)$/';
     foreach ($exec_output as $line) {
         $match= [];
         if (strpos($line, 'post_max_size') !== false) {
@@ -100,7 +104,55 @@ if (empty($exec_output)) {
             if (!empty($match)) {
                 $phpVersion = $match[2];
             }
+
+        } elseif (strpos($line, 'GD library Version') !== false) {
+            preg_match($regVersion, $line, $match);
+            if (!empty($match)) {
+                $extensionsCLI['gd'] = $match[2];
+            }
+
+        } elseif (strpos($line, 'libmbfl version') !== false) {
+            preg_match($regVersion, $line, $match);
+            if (!empty($match)) {
+                $extensionsCLI['mbstring'] = $match[2];
+            }
+
+        } elseif (strpos($line, 'Client API library version') !== false) {
+            preg_match($regVersion, $line, $match);
+            if (!empty($match)) {
+                $extensionsCLI['mysqli'] = $match[2];
+            }
+
+        } elseif (strpos($line, 'libxml2 Version') !== false) {
+            preg_match($regVersion, $line, $match);
+            if (!empty($match)) {
+                $extensionsCLI['xml'] = $match[2];
+            }
+
+        } elseif (strpos($line, 'cURL Information') !== false) {
+            preg_match($regVersion, $line, $match);
+            if (!empty($match)) {
+                $extensionsCLI['curl'] = $match[2];
+            }
         }
+    }
+}
+
+$modulesWeb = parseAllPHPModules();
+
+$extensionMessages = [
+    'gd' => 'GD library Version',
+    'mbstring' => 'libmbfl version',
+    'mysqli' => 'Client API library version',
+    'curl' => 'cURL Information',
+    'xml' => 'libxml2 Version',
+];
+
+$extensionsWEB = [];
+foreach ($extensionMessages as $extension => $version) {
+    $res = $modulesWeb[$extension];
+    if (!empty($res)) {
+        $extensionsWEB[$extension] = $modulesWeb[$extension][$version];
     }
 }
 
@@ -109,6 +161,8 @@ assign('post_max_size_cli', $post_max_size_cli);
 assign('memory_limit_cli', $memory_limit_cli);
 assign('upload_max_filesize_cli', $upload_max_filesize_cli);
 assign('max_execution_time_cli', $max_execution_time_cli);
+assign('extensionsCLI', $extensionsCLI);
+assign('extensionsWEB', $extensionsWEB);
 
 subtitle(lang('system_info'));
 template_files("system_info.html");

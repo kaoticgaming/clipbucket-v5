@@ -50,7 +50,6 @@ CREATE TABLE `{tbl_prefix}collections` (
   `collection_id_parent` BIGINT(25) NULL DEFAULT NULL,
   `collection_name` varchar(225) NOT NULL,
   `collection_description` text NOT NULL,
-  `collection_tags` text NOT NULL,
   `category` varchar(200) NOT NULL,
   `userid` int(10) NOT NULL,
   `views` bigint(20) NOT NULL DEFAULT 0,
@@ -61,7 +60,6 @@ CREATE TABLE `{tbl_prefix}collections` (
   `allow_rating` enum('yes','no') NOT NULL DEFAULT 'yes',
   `total_comments` bigint(20) NOT NULL DEFAULT 0,
   `last_commented` datetime DEFAULT NULL,
-  `total_objects` bigint(20) NOT NULL DEFAULT 0,
   `rating` bigint(20) NOT NULL DEFAULT 0,
   `rated_by` bigint(20) NOT NULL DEFAULT 0,
   `voters` longtext DEFAULT NULL,
@@ -81,14 +79,6 @@ CREATE TABLE `{tbl_prefix}collection_categories` (
   `isdefault` enum('yes','no') NOT NULL DEFAULT 'no'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 
-CREATE TABLE `{tbl_prefix}collection_contributors` (
-  `contributor_id` int(200) NOT NULL,
-  `collection_id` int(255) NOT NULL,
-  `userid` int(255) NOT NULL,
-  `can_edit` enum('yes','no') NOT NULL DEFAULT 'no',
-  `date_added` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
 CREATE TABLE `{tbl_prefix}collection_items` (
   `ci_id` bigint(20) NOT NULL,
   `collection_id` bigint(20) NOT NULL,
@@ -100,7 +90,7 @@ CREATE TABLE `{tbl_prefix}collection_items` (
 
 CREATE TABLE `{tbl_prefix}comments` (
   `comment_id` int(60) NOT NULL,
-  `type` varchar(3) NOT NULL,
+  `type` varchar(16) NOT NULL,
   `comment` text NOT NULL,
   `userid` int(60) NULL DEFAULT NULL,
   `anonym_name` varchar(255) NOT NULL,
@@ -187,85 +177,6 @@ CREATE TABLE `{tbl_prefix}flags` (
   `date_added` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 
-CREATE TABLE `{tbl_prefix}groups` (
-  `group_id` int(225) NOT NULL,
-  `group_name` mediumtext NOT NULL,
-  `userid` int(255) NOT NULL,
-  `group_admins` text NOT NULL,
-  `group_description` mediumtext NOT NULL,
-  `group_tags` mediumtext NOT NULL,
-  `group_url` mediumtext NOT NULL,
-  `category` varchar(100) NOT NULL,
-  `group_privacy` enum('0','1','2') NOT NULL DEFAULT '0',
-  `video_type` enum('0','1','2') NOT NULL DEFAULT '0',
-  `post_type` enum('0','1','2') NOT NULL DEFAULT '0',
-  `active` enum('yes','no') NOT NULL DEFAULT 'yes',
-  `date_added` datetime NOT NULL,
-  `featured` enum('yes','no') NOT NULL DEFAULT 'no',
-  `total_views` bigint(225) NOT NULL,
-  `total_videos` int(225) NOT NULL,
-  `total_members` int(225) NOT NULL,
-  `total_topics` int(225) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
-CREATE TABLE `{tbl_prefix}group_categories` (
-  `category_id` int(225) NOT NULL,
-  `category_name` varchar(30) NOT NULL DEFAULT '',
-  `category_order` int(5) NOT NULL DEFAULT 1,
-  `category_desc` text NOT NULL,
-  `date_added` datetime NOT NULL,
-  `category_thumb` mediumtext NOT NULL,
-  `isdefault` enum('yes','no') NOT NULL DEFAULT 'no'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
-CREATE TABLE `{tbl_prefix}group_invitations` (
-  `invitation_id` int(225) NOT NULL,
-  `group_id` int(225) NOT NULL,
-  `userid` int(255) NOT NULL,
-  `invited` int(225) NOT NULL,
-  `date_added` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
-CREATE TABLE `{tbl_prefix}group_members` (
-  `group_mid` int(225) NOT NULL,
-  `group_id` int(225) NOT NULL,
-  `userid` int(11) NOT NULL,
-  `date_added` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `active` enum('yes','no') NOT NULL DEFAULT 'yes'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
-CREATE TABLE `{tbl_prefix}group_posts` (
-  `post_id` int(11) NOT NULL,
-  `userid` int(11) NOT NULL,
-  `topic_id` int(11) NOT NULL,
-  `post_content` text NOT NULL,
-  `date_added` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
-CREATE TABLE `{tbl_prefix}group_topics` (
-  `topic_id` int(225) NOT NULL,
-  `topic_title` text NOT NULL,
-  `userid` int(225) NOT NULL,
-  `group_id` int(225) NOT NULL,
-  `topic_post` text NOT NULL,
-  `date_added` datetime NOT NULL,
-  `last_poster` int(225) NOT NULL,
-  `last_post_time` datetime NOT NULL,
-  `total_views` bigint(225) NOT NULL,
-  `total_replies` bigint(225) NOT NULL,
-  `topic_icon` varchar(225) NOT NULL,
-  `approved` enum('yes','no') NOT NULL DEFAULT 'yes'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
-CREATE TABLE `{tbl_prefix}group_videos` (
-  `group_video_id` int(225) NOT NULL,
-  `videoid` int(255) NOT NULL,
-  `group_id` int(225) NOT NULL,
-  `userid` int(255) NOT NULL,
-  `date_added` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `approved` enum('yes','no') NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
-
 CREATE TABLE `{tbl_prefix}languages` (
   `language_id` int(9) NOT NULL,
   `language_name` varchar(20) NOT NULL DEFAULT '0',
@@ -322,7 +233,6 @@ CREATE TABLE `{tbl_prefix}photos` (
   `photo_key` mediumtext NOT NULL,
   `photo_title` mediumtext NOT NULL,
   `photo_description` mediumtext NOT NULL,
-  `photo_tags` mediumtext NOT NULL,
   `userid` int(255) NOT NULL,
   `collection_id` int(255) NOT NULL,
   `date_added` datetime NOT NULL,
@@ -348,7 +258,8 @@ CREATE TABLE `{tbl_prefix}photos` (
   `downloaded` bigint(255) NOT NULL DEFAULT 0,
   `server_url` text NULL DEFAULT NULL,
   `owner_ip` varchar(20) NOT NULL,
-  `photo_details` text NULL DEFAULT NULL
+  `photo_details` text NULL DEFAULT NULL,
+  `age_restriction` INT DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 
 CREATE TABLE `{tbl_prefix}playlists` (
@@ -481,7 +392,6 @@ CREATE TABLE `{tbl_prefix}users` (
   `background_color` varchar(25) DEFAULT NULL,
   `background_url` text DEFAULT NULL,
   `background_repeat` enum('no-repeat','repeat','repeat-x','repeat-y') NOT NULL DEFAULT 'repeat',
-  `total_groups` bigint(20) NOT NULL DEFAULT 0,
   `last_active` datetime NOT NULL DEFAULT '1000-01-01 00:00:00',
   `banned_users` text DEFAULT NULL,
   `welcome_email_sent` enum('yes','no') NOT NULL DEFAULT 'no',
@@ -517,7 +427,6 @@ CREATE TABLE `{tbl_prefix}user_levels_permissions` (
   `view_photos` enum('yes','no') NOT NULL DEFAULT 'yes',
   `view_collections` enum('yes','no') NOT NULL DEFAULT 'yes',
   `view_channel` enum('yes','no') NOT NULL DEFAULT 'yes',
-  `view_group` enum('yes','no') NOT NULL DEFAULT 'yes',
   `view_videos` enum('yes','no') NOT NULL DEFAULT 'yes',
   `avatar_upload` enum('yes','no') NOT NULL DEFAULT 'yes',
   `video_moderation` enum('yes','no') NOT NULL DEFAULT 'no',
@@ -527,7 +436,6 @@ CREATE TABLE `{tbl_prefix}user_levels_permissions` (
   `group_moderation` enum('yes','no') NOT NULL DEFAULT 'no',
   `web_config_access` enum('yes','no') NOT NULL DEFAULT 'no',
   `view_channels` enum('yes','no') NOT NULL DEFAULT 'yes',
-  `view_groups` enum('yes','no') NOT NULL DEFAULT 'yes',
   `playlist_access` enum('yes','no') NOT NULL DEFAULT 'yes',
   `allow_channel_bg` enum('yes','no') NOT NULL DEFAULT 'yes',
   `private_msg_access` enum('yes','no') NOT NULL DEFAULT 'yes',
@@ -562,7 +470,7 @@ CREATE TABLE `{tbl_prefix}user_permission_types` (
 CREATE TABLE `{tbl_prefix}user_profile` (
   `user_profile_id` int(11) NOT NULL,
   `show_my_collections` enum('yes','no') NOT NULL DEFAULT 'yes',
-  `userid` bigint(20) NOT NULL,
+  `userid` bigint(20) NOT NULL UNIQUE,
   `profile_title` mediumtext NOT NULL,
   `profile_desc` mediumtext NOT NULL,
   `featured_video` mediumtext NOT NULL,
@@ -572,7 +480,6 @@ CREATE TABLE `{tbl_prefix}user_profile` (
   `show_dob` enum('no','yes') DEFAULT 'no',
   `postal_code` varchar(20) NOT NULL DEFAULT '',
   `time_zone` tinyint(4) NOT NULL DEFAULT 0,
-  `profile_tags` mediumtext DEFAULT NULL,
   `web_url` varchar(200) NOT NULL DEFAULT '',
   `fb_url` varchar(200) DEFAULT '',
   `twitter_url` varchar(200) DEFAULT '',
@@ -622,15 +529,11 @@ CREATE TABLE `{tbl_prefix}video` (
   `file_type` VARCHAR(3) NULL DEFAULT NULL,
   `file_directory` varchar(25) NOT NULL DEFAULT '',
   `description` text DEFAULT NULL,
-  `tags` mediumtext NOT NULL,
   `category` VARCHAR(200) NULL DEFAULT NULL,
-  `category_parents` text NULL DEFAULT NULL,
   `broadcast` varchar(10) NOT NULL DEFAULT '',
   `location` mediumtext DEFAULT NULL,
   `datecreated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `country` mediumtext DEFAULT NULL,
-  `blocked_countries` text NULL DEFAULT NULL,
-  `sprite_count` int(11) NOT NULL DEFAULT 0,
   `allow_embedding` char(3) NOT NULL DEFAULT '',
   `rating` int(15) NOT NULL DEFAULT 0,
   `rated_by` varchar(20) NOT NULL DEFAULT '0',
@@ -641,7 +544,6 @@ CREATE TABLE `{tbl_prefix}video` (
   `last_commented` datetime DEFAULT NULL,
   `featured` char(3) NOT NULL DEFAULT 'no',
   `featured_date` datetime DEFAULT NULL,
-  `featured_description` mediumtext NOT NULL,
   `allow_rating` char(3) NOT NULL DEFAULT '',
   `active` char(3) NOT NULL DEFAULT '0',
   `favourite_count` varchar(15) NOT NULL DEFAULT '0',
@@ -652,25 +554,19 @@ CREATE TABLE `{tbl_prefix}video` (
   `flagged` varchar(3) NOT NULL DEFAULT 'no',
   `duration` varchar(20) NOT NULL DEFAULT '00',
   `status` enum('Successful','Processing','Failed','Waiting') NOT NULL DEFAULT 'Processing',
-  `failed_reason` enum('none','max_duration','max_file','invalid_format','invalid_upload') NOT NULL DEFAULT 'none',
   `default_thumb` int(3) NOT NULL DEFAULT 1,
-  `aspect_ratio` varchar(10) NOT NULL DEFAULT '',
   `embed_code` text NULL DEFAULT NULL,
-  `refer_url` text NULL DEFAULT NULL,
   `downloads` bigint(255) NOT NULL DEFAULT 0,
   `uploader_ip` varchar(20) NOT NULL DEFAULT '',
-  `unique_embed_code` varchar(50) NOT NULL DEFAULT '',
   `video_files` tinytext NULL DEFAULT NULL,
-  `server_ip` varchar(20) NOT NULL DEFAULT '',
   `file_server_path` text NULL DEFAULT NULL,
-  `files_thumbs_path` text NULL DEFAULT NULL,
-  `process_status` bigint(30) NOT NULL DEFAULT 0,
   `video_version` varchar(30) NOT NULL DEFAULT '5.5.0',
   `thumbs_version` varchar(5) NOT NULL DEFAULT '5.5.0',
   `re_conv_status` tinytext NULL DEFAULT NULL,
   `is_castable` tinyint(1) NOT NULL DEFAULT 0,
   `bits_color` tinyint(4) DEFAULT NULL,
-  `subscription_email` enum('pending','sent') NOT NULL DEFAULT 'pending'
+  `subscription_email` enum('pending','sent') NOT NULL DEFAULT 'pending',
+  `age_restriction` INT DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 
 CREATE TABLE `{tbl_prefix}video_categories` (
@@ -762,13 +658,11 @@ ALTER TABLE `{tbl_prefix}collections`
   ADD PRIMARY KEY (`collection_id`),
   ADD KEY `userid` (`userid`),
   ADD KEY `featured` (`featured`),
-  ADD INDEX(`collection_id_parent`);
+  ADD INDEX(`collection_id_parent`),
+  ADD FULLTEXT KEY `collection_name` (`collection_name`);
 
 ALTER TABLE `{tbl_prefix}collection_categories`
   ADD PRIMARY KEY (`category_id`);
-
-ALTER TABLE `{tbl_prefix}collection_contributors`
-  ADD PRIMARY KEY (`contributor_id`);
 
 ALTER TABLE `{tbl_prefix}collection_items`
   ADD PRIMARY KEY (`ci_id`);
@@ -805,27 +699,6 @@ ALTER TABLE `{tbl_prefix}favorites`
 ALTER TABLE `{tbl_prefix}flags`
   ADD PRIMARY KEY (`flag_id`);
 
-ALTER TABLE `{tbl_prefix}groups`
-  ADD PRIMARY KEY (`group_id`);
-
-ALTER TABLE `{tbl_prefix}group_categories`
-  ADD PRIMARY KEY (`category_id`);
-
-ALTER TABLE `{tbl_prefix}group_invitations`
-  ADD PRIMARY KEY (`invitation_id`);
-
-ALTER TABLE `{tbl_prefix}group_members`
-  ADD PRIMARY KEY (`group_mid`);
-
-ALTER TABLE `{tbl_prefix}group_posts`
-  ADD PRIMARY KEY (`post_id`);
-
-ALTER TABLE `{tbl_prefix}group_topics`
-  ADD PRIMARY KEY (`topic_id`);
-
-ALTER TABLE `{tbl_prefix}group_videos`
-  ADD PRIMARY KEY (`group_video_id`);
-
 ALTER TABLE `{tbl_prefix}languages`
   ADD PRIMARY KEY (`language_id`),
   ADD KEY `language_default` (`language_default`);
@@ -847,8 +720,8 @@ ALTER TABLE `{tbl_prefix}photos`
   ADD KEY `featured` (`featured`),
   ADD KEY `last_viewed` (`last_viewed`),
   ADD KEY `rating` (`rating`),
-  ADD KEY `total_comments` (`total_comments`);
-ALTER TABLE `{tbl_prefix}photos` ADD FULLTEXT KEY `photo_title` (`photo_title`,`photo_tags`);
+  ADD KEY `total_comments` (`total_comments`),
+  ADD FULLTEXT KEY `photo_title` (`photo_title`);
 
 ALTER TABLE `{tbl_prefix}playlists`
   ADD PRIMARY KEY (`playlist_id`);
@@ -880,7 +753,8 @@ ALTER TABLE `{tbl_prefix}users`
   ADD KEY `ind_status_doj` (`doj`),
   ADD KEY `ind_status_id` (`userid`),
   ADD KEY `ind_hits_doj` (`profile_hits`,`doj`),
-  ADD KEY `username` (`username`(255),`userid`);
+  ADD KEY `username` (`username`(255),`userid`),
+  ADD FULLTEXT KEY `username_fulltext` (`username`);
 
 ALTER TABLE `{tbl_prefix}user_categories`
   ADD PRIMARY KEY (`category_id`);
@@ -902,7 +776,6 @@ ALTER TABLE `{tbl_prefix}user_permission_types`
 ALTER TABLE `{tbl_prefix}user_profile`
   ADD PRIMARY KEY (`user_profile_id`),
   ADD KEY `ind_status_id` (`userid`);
-ALTER TABLE `{tbl_prefix}user_profile` ADD FULLTEXT KEY `profile_tags` (`profile_tags`);
 
 ALTER TABLE `{tbl_prefix}video`
   ADD PRIMARY KEY (`videoid`),
@@ -912,9 +785,10 @@ ALTER TABLE `{tbl_prefix}video`
   ADD KEY `rating` (`rating`),
   ADD KEY `comments_count` (`comments_count`),
   ADD KEY `status` (`status`,`active`,`broadcast`,`userid`),
-  ADD KEY `videoid` (`videoid`,`videokey`(255));
-ALTER TABLE `{tbl_prefix}video` ADD FULLTEXT KEY `description` (`description`,`title`);
-ALTER TABLE `{tbl_prefix}video` ADD FULLTEXT KEY `title` (`title`,`tags`);
+  ADD KEY `videoid` (`videoid`,`videokey`(255)),
+  ADD FULLTEXT KEY `description` (`description`,`title`);
+ALTER TABLE `{tbl_prefix}video`
+  ADD FULLTEXT KEY `title` (`title`);
 
 ALTER TABLE `{tbl_prefix}video_categories`
   ADD PRIMARY KEY (`category_id`);
@@ -923,8 +797,8 @@ ALTER TABLE `{tbl_prefix}video_favourites`
   ADD PRIMARY KEY (`fav_id`);
 
 ALTER TABLE `{tbl_prefix}video_files`
-  ADD PRIMARY KEY (`id`);
-ALTER TABLE `{tbl_prefix}video_files` ADD FULLTEXT KEY `src_bitrate` (`src_bitrate`);
+  ADD PRIMARY KEY (`id`),
+  ADD FULLTEXT KEY `src_bitrate` (`src_bitrate`);
 
 ALTER TABLE `{tbl_prefix}video_views`
   ADD PRIMARY KEY (`id`);
@@ -949,9 +823,6 @@ ALTER TABLE `{tbl_prefix}collections`
 
 ALTER TABLE `{tbl_prefix}collection_categories`
   MODIFY `category_id` int(255) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}collection_contributors`
-  MODIFY `contributor_id` int(200) NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `{tbl_prefix}collection_items`
   MODIFY `ci_id` bigint(20) NOT NULL AUTO_INCREMENT;
@@ -982,27 +853,6 @@ ALTER TABLE `{tbl_prefix}favorites`
 
 ALTER TABLE `{tbl_prefix}flags`
   MODIFY `flag_id` int(225) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}groups`
-  MODIFY `group_id` int(225) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}group_categories`
-  MODIFY `category_id` int(225) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}group_invitations`
-  MODIFY `invitation_id` int(225) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}group_members`
-  MODIFY `group_mid` int(225) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}group_posts`
-  MODIFY `post_id` int(11) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}group_topics`
-  MODIFY `topic_id` int(225) NOT NULL AUTO_INCREMENT;
-
-ALTER TABLE `{tbl_prefix}group_videos`
-  MODIFY `group_video_id` int(225) NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `{tbl_prefix}languages`
   MODIFY `language_id` int(9) NOT NULL AUTO_INCREMENT;
@@ -1139,12 +989,14 @@ CREATE TABLE `{tbl_prefix}video_thumbs`(
     `num`        VARCHAR(4)  NOT NULL,
     `extension`  VARCHAR(4)  NOT NULL,
     `version`    VARCHAR(30) NOT NULL,
+    `type`       VARCHAR(15) NOT NULL,
     PRIMARY KEY `resolution` (`videoid`, `resolution`, `num`),
     KEY `videoid` (`videoid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 
 ALTER TABLE `{tbl_prefix}video_thumbs`
-    ADD CONSTRAINT `{tbl_prefix}video_thumbs_ibfk_1` FOREIGN KEY (`videoid`) REFERENCES `{tbl_prefix}video` (`videoid`) ON DELETE RESTRICT ON UPDATE NO ACTION;
+    ADD CONSTRAINT `{tbl_prefix}video_thumbs_ibfk_1` FOREIGN KEY (`videoid`) REFERENCES `{tbl_prefix}video` (`videoid`) ON DELETE RESTRICT ON UPDATE NO ACTION,
+    ADD INDEX(`type`);
 
 CREATE TABLE `{tbl_prefix}tools`(
     `id_tool`                  INT          NOT NULL AUTO_INCREMENT,
@@ -1165,3 +1017,78 @@ CREATE TABLE `{tbl_prefix}tools_status`(
 
 ALTER TABLE `{tbl_prefix}tools`
     ADD FOREIGN KEY (`id_tools_status`) REFERENCES `{tbl_prefix}tools_status` (`id_tools_status`) ON DELETE RESTRICT ON UPDATE NO ACTION;
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}tags`
+(
+    `id_tag`      INT          NOT NULL AUTO_INCREMENT,
+    `id_tag_type` INT          NOT NULL,
+    `name`        VARCHAR(128) NOT NULL,
+    PRIMARY KEY (`id_tag`),
+    UNIQUE  `id_tag_type` (`id_tag_type`, `name`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+ALTER TABLE `{tbl_prefix}tags` ADD FULLTEXT KEY `tag` (`name`);
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}tags_type`
+(
+    `id_tag_type` INT         NOT NULL AUTO_INCREMENT,
+    `name`        VARCHAR(32) NOT NULL,
+    PRIMARY KEY (`id_tag_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+
+ALTER TABLE `{tbl_prefix}tags` ADD CONSTRAINT `tag_type` FOREIGN KEY (`id_tag_type`) REFERENCES `{tbl_prefix}tags_type`(`id_tag_type`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}video_tags`
+(
+    `id_video` BIGINT NOT NULL,
+    `id_tag`   INT    NOT NULL,
+    PRIMARY KEY (`id_video`, `id_tag`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+
+ALTER TABLE `{tbl_prefix}video_tags`
+  ADD CONSTRAINT `video_tags_tag` FOREIGN KEY (`id_tag`) REFERENCES `{tbl_prefix}tags`(`id_tag`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `video_tags_video` FOREIGN KEY (`id_video`) REFERENCES `{tbl_prefix}video`(`videoid`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}photo_tags`
+(
+    `id_photo` BIGINT NOT NULL,
+    `id_tag`   INT    NOT NULL,
+    PRIMARY KEY (`id_photo`, `id_tag`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+
+ALTER TABLE `{tbl_prefix}photo_tags`
+  ADD CONSTRAINT `photo_tags_tag` FOREIGN KEY (`id_tag`) REFERENCES `{tbl_prefix}tags` (`id_tag`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `photo_tags_photo` FOREIGN KEY (`id_photo`) REFERENCES `{tbl_prefix}photos` (`photo_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}collection_tags`
+(
+    `id_collection` BIGINT NOT NULL,
+    `id_tag`        INT    NOT NULL,
+    PRIMARY KEY (`id_collection`, `id_tag`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+
+ALTER TABLE `{tbl_prefix}collection_tags`
+  ADD CONSTRAINT `collection_tags_tag` FOREIGN KEY (`id_tag`) REFERENCES `{tbl_prefix}tags` (`id_tag`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `collection_tags_collection` FOREIGN KEY (`id_collection`) REFERENCES `{tbl_prefix}collections` (`collection_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}user_tags`
+(
+    `id_user` BIGINT NOT NULL,
+    `id_tag`  INT    NOT NULL,
+    PRIMARY KEY (`id_user`, `id_tag`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+
+ALTER TABLE `{tbl_prefix}user_tags`
+  ADD CONSTRAINT `user_tags_tag` FOREIGN KEY (`id_tag`) REFERENCES `{tbl_prefix}tags` (`id_tag`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `user_tags_user` FOREIGN KEY (`id_user`) REFERENCES `{tbl_prefix}users` (`userid`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+CREATE TABLE IF NOT EXISTS `{tbl_prefix}playlist_tags`
+(
+    `id_playlist` INT NOT NULL,
+    `id_tag`      INT NOT NULL,
+    PRIMARY KEY (`id_playlist`, `id_tag`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE utf8mb4_unicode_520_ci;
+
+ALTER TABLE `{tbl_prefix}playlist_tags`
+  ADD CONSTRAINT `playlist_tags_tag` FOREIGN KEY (`id_tag`) REFERENCES `{tbl_prefix}tags` (`id_tag`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  ADD CONSTRAINT `playlist_tags_playlist` FOREIGN KEY (`id_playlist`) REFERENCES `{tbl_prefix}playlists` (`playlist_id`) ON DELETE RESTRICT ON UPDATE RESTRICT;

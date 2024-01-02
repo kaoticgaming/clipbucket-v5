@@ -6,41 +6,12 @@
     var lang_load_more    = "{lang code='load_more'}";
     var lang_loading      = "{lang code='loading'}";
     var lang_add_comment  = "{lang code='user_add_comment'}";
-    var embedPlayerWidth  = '{$Cbucket->configs.embed_player_width}';
-    var embedPlayerHeight = '{$Cbucket->configs.embed_player_height}';
-    var autoPlayEmbed     = '{$Cbucket->configs.autoplay_embed}';
-    var embed_type        = '{$Cbucket->configs.embed_type}';
 
-    function updateEmbed(width,height,autoplay)
-    {
-        $('#embed_code').val( $('#embed_code').val().replace(/width=\"([0-9]+)\"/g,'width="'+width+'"') );
-        $('#embed_code').val( $('#embed_code').val().replace(/height=\"([0-9]+)\"/g,'height="'+height+'"') );
-        $('#embed_code').val( $('#embed_code').val().replace(/width=([0-9]+)/g,'width='+width) );
-        $('#embed_code').val( $('#embed_code').val().replace(/height=([0-9]+)/g,'height='+height+'') );
-    }
-
-    function switchEmbedCode(type)
-    {
-        if(embed_type==type){
-            return false;
-        }
-        embed_type = type;
-
-        var alt_embed =$('#alternate_embed_code').val();
-        $('#alternate_embed_code').val($('#embed_code').val());
-        $('#embed_code').val(alt_embed);
+    function updateEmbed(width,height) {
+        $('#embed_code').val($('#embed_code').val().replace(/width=\"([0-9]+)\"/g, 'width="' + width + '"'));
+        $('#embed_code').val($('#embed_code').val().replace(/height=\"([0-9]+)\"/g, 'height="' + height + '"'));
     }
 </script>
-
-<!-- Including JS Files-->
-{if in_dev()}
-    <script type="text/javascript" src="/js/jquery_plugs/cookie.js"></script>
-    <script type="text/javascript" src="/js/functions.js"></script>
-{else}
-    <script type="text/javascript" src="/js/jquery_plugs/cookie.min.js"></script>
-    <script type="text/javascript" src="/js/functions.min.js"></script>
-{/if}
-<!-- Including JS Files-->
 
 <script type="text/javascript">
     callURLParser();
@@ -77,8 +48,7 @@ function show_message(msg,ID,fade)
 function doUpdateVideo(formId,ID)
 {
     var formObjectData = $(formId).serialize();
-    //alert(serializedData);
-    
+
     $('#updateVideoDataLoading').html('<img src="'+imageurl+'/ajax-loader.gif" />');
     $('#cbSubmitUpload'+ID)
     .attr('disabled','disabled')
@@ -96,16 +66,6 @@ function doUpdateVideo(formId,ID)
         $('#cbSubmitUpload'+ID).removeAttr("disabled").attr("value",lang.saveData).attr("onClick","doUpdateVideo('#uploadForm"+ID+"','"+ID+"')")
     },"json");
 }
-</script>
-
-{else}
-<script type="text/javascript">
-window.onload = function() {ldelim}
-    {if $total_quicklist}
-        load_quicklist_box();
-    {/if}
-    ini_cookies();
-{rdelim}
 </script>
 {/if}
 
@@ -192,7 +152,7 @@ window.onload = function() {ldelim}
                     .removeAttr('disabled').attr('onClick','updateAjaxPhoto("'+ID+'");');
                 }
             }
-        })
+        });
     }
 
     function updateAjaxPhoto(ID)
@@ -228,7 +188,7 @@ window.onload = function() {ldelim}
                     }
                 }
             }
-        })
+        });
     }
 
     function showPhotoPreview(ID,preview)
@@ -244,17 +204,6 @@ window.onload = function() {ldelim}
 </script>
 {/if}
 
-{if $Cbucket->JSArray}
-    {foreach from=$Cbucket->JSArray key=file item=type}
-        {include_js type=$type file=$file}
-    {/foreach}
-{/if}
-
-{if $Cbucket->CSSArray}
-    {foreach from=$Cbucket->CSSArray key=file item=type}
-        {include_css type=$type file=$file}
-    {/foreach}
-{/if}
 
 {if $smarty.const.THIS_PAGE == 'view_item'}
 <script type="text/javascript">
@@ -262,9 +211,11 @@ window.onload = function() {ldelim}
     onReload_item();
 </script>
 {/if}
-    <meta property="fb:app_id" content="541598765890838" />
-{if $smarty.const.THIS_PAGE=='watch_video' || $object.videoid}
-    {if $object.videoid}{assign var=vdo value=$object} {/if}
+
+{if $smarty.const.THIS_PAGE=='watch_video' && (!empty($object.videoid) || !empty($vdo))}
+    {if $object.videoid}
+        {assign var=vdo value=$object}
+    {/if}
     <meta property="og:title" content="{display_clean($vdo.title)}" />
     <meta property="og:description" content="{display_clean($vdo.description)|description|strip_tags}" />
     <meta property="og:image" content="{getThumb vdetails=$vdo size=768x432}" />
@@ -289,9 +240,9 @@ window.onload = function() {ldelim}
 
 
 {if $smarty.const.THIS_PAGE=='videos'}
-    <meta property="og:description" content="this is a videos page of ClipBucket"/>
+    <meta property="og:description" content="this is a videos page of ClipBucketV5"/>
 {/if}
 
-{ANCHOR place='cb_head'}
+{ANCHOR place='after_header'}
 
-<!-- ClipBucket version {$Cbucket->cbinfo.version} -->
+<!-- ClipBucketV5 version {$Cbucket->cbinfo.version} - {$Cbucket->cbinfo.rev} -->

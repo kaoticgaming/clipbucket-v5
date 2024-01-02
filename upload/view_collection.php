@@ -13,10 +13,13 @@ $c = (int)$_GET['cid'];
 
 $page = $_GET['page'];
 
-$order = tbl('collection_items') . '.ci_id DESC';
+$order = 'collection_items.ci_id DESC';
 
 if ($cbcollection->is_viewable($c)) {
-    $cdetails = $cbcollection->get_collection($c);
+    $params = [];
+    $params['collection_id'] = $c;
+    $params['first_only'] = true;
+    $cdetails = Collection::getInstance()->getAll($params);
 
     if (!$cdetails || !isSectionEnabled($cdetails['type'])) {
         $Cbucket->show_page = false;
@@ -27,26 +30,27 @@ if ($cbcollection->is_viewable($c)) {
     } else {
         $get_limit = create_query_limit($page, config('collection_items_page'));
         if (config('enable_sub_collection')) {
-            $cond = [
-                'limit'       => $get_limit
-                , 'parent_id' => $c
-            ];
+            $params = [];
+            $params['collection_id_parent'] = $c;
+            $params['limit'] = $get_limit;
+            $collections = Collection::getInstance()->getAll($params);
 
-            $collections = $cbcollection->get_collections($cond);
             Assign('collections', $collections);
         }
 
-        switch ($cdetails['type']) {
-            default:
-            case 'videos':
-                $total_items = $cbvideo->collection->get_collection_items_with_details($c, $order, null, true);
-                $items = $cbvideo->collection->get_collection_items_with_details($c, $order, $get_limit);
-                break;
+        $params = [];
+        $params['collection_id'] = $c;
+        $params['limit'] = $get_limit;
+        $items = Collection::getInstance()->getItems($params);
 
-            case 'photos':
-                $total_items = $cbphoto->collection->get_collection_items_with_details($c, $order, null, true);
-                $items = $cbphoto->collection->get_collection_items_with_details($c, $order, $get_limit);
-                break;
+        if( empty($items) ){
+            $total_items = 0;
+        } else if( count($items) < config('collection_items_page') ){
+            $total_items = count($items);
+        } else {
+            unset($params['limit']);
+            $params['count'] = true;
+            $total_items = Collection::getInstance()->getItems($params);
         }
 
         // Calling necessary function for view collection
@@ -82,6 +86,19 @@ if ($cbcollection->is_viewable($c)) {
 } else {
     $Cbucket->show_page = false;
 }
+
+if(in_dev()){
+    $min_suffixe = '';
+} else {
+    $min_suffixe = '.min';
+}
+
+ClipBucket::getInstance()->addJS(['tag-it'.$min_suffixe.'.js' => 'admin']);
+ClipBucket::getInstance()->addJS(['pages/view_collection/view_collection'.$min_suffixe.'.js' => 'admin']);
+ClipBucket::getInstance()->addJS(['init_readonly_tag/init_readonly_tag'.$min_suffixe.'.js' => 'admin']);
+ClipBucket::getInstance()->addCSS(['jquery.tagit'.$min_suffixe.'.css' => 'admin']);
+ClipBucket::getInstance()->addCSS(['tagit.ui-zendesk'.$min_suffixe.'.css' => 'admin']);
+ClipBucket::getInstance()->addCSS(['readonly_tag'.$min_suffixe.'.css' => 'admin']);
 
 template_files('view_collection.html');
 display_it();

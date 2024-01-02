@@ -22,6 +22,7 @@ function attach_video($array)
  * Function used to pars video from attachment
  *
  * @param $att
+ * @throws Exception
  */
 function parse_and_attach_video($att)
 {
@@ -29,7 +30,7 @@ function parse_and_attach_video($att)
     preg_match('/{v:(.*)}/', $att, $matches);
     $vkey = $matches[1];
     if (!empty($vkey)) {
-        assign('video', $cbvid->get_video_details($vkey));
+        assign('video', $cbvid->get_video($vkey));
         assign('only_once', true);
         echo '<h3>Attached Video</h3>';
         echo '<div class="clearfix videos row">';
@@ -40,6 +41,7 @@ function parse_and_attach_video($att)
 
 /**
  * Function used to add custom video attachment form field
+ * @throws Exception
  */
 function video_attachment_form(): array
 {
@@ -92,6 +94,7 @@ class cb_pm
 
     /**
      * Sending PM
+     * @throws Exception
      */
     function send_pm($array): bool
     {

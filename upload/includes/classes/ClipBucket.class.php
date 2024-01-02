@@ -1,7 +1,6 @@
 <?php
 class ClipBucket
 {
-    var $BASEDIR;
     var $JSArray = [];
     var $AdminJSArray = [];
     var $CSSArray = [];
@@ -22,11 +21,11 @@ class ClipBucket
     var $template_files = [];
     var $links = [];
     var $captchas = [];
-    var $clipbucket_footer = ['cb_bottom', 'smarty_catch_error'];
+    var $clipbucket_footer = [];
     var $clipbucket_functions = [];
     var $head_menu = [];
     var $foot_menu = [];
-    var $template = "";
+    var $template = '';
     var $cbinfo = [];
     var $search_types = [];
 
@@ -59,6 +58,11 @@ class ClipBucket
     //This array contains the public pages name for private access to website 
     var $public_pages = ["signup", "view_page"];
 
+    public static function getInstance(){
+        global $Cbucket;
+        return $Cbucket;
+    }
+
     /**
      * @throws Exception
      */
@@ -69,13 +73,6 @@ class ClipBucket
         $this->configs = $this->get_configs();
         //Get Current Page and Redirects it to without www.
         $pages->redirectOrig();
-        //Get Base Directory
-        $this->BASEDIR = $this->getBasedir();
-        //Listing Common JS File
-        $this->addJS([
-            'jquery_plugs/cookie.js' => 'global',
-            'functions.js'           => 'global',
-        ]);
 
         //This is used to create Admin Menu
         //Updating Upload Options		
@@ -105,45 +102,76 @@ class ClipBucket
         }
     }
 
-    function getBasedir()
-    {
-        $dirname = dirname(__FILE__);
-        $dirname = preg_replace(['/includes/', '/classes/'], '', $dirname);
-        $dirname = substr($dirname, 0, strlen($dirname) - 2);
-        return $dirname == '/' ? '' : $dirname;
-    }
-
+    /**
+     * @throws Exception
+     */
     function addJS($files)
     {
         $this->addFile($this->JSArray, $files);
     }
 
+    /**
+     * @throws Exception
+     */
     function addAdminJS($files)
     {
         $this->addFile($this->AdminJSArray, $files);
     }
 
+    /**
+     * @throws Exception
+     */
+    function addAllJS($files)
+    {
+        $this->addFile($this->JSArray, $files);
+        $this->addFile($this->AdminJSArray, $files);
+    }
+
+    /**
+     * @throws Exception
+     */
     function addCSS($files)
     {
         $this->addFile($this->CSSArray, $files);
     }
 
+    /**
+     * @throws Exception
+     */
     function addAdminCSS($files)
     {
         $this->addFile($this->AdminCSSArray, $files);
     }
 
+    /**
+     * @throws Exception
+     */
+    function addAllCSS($files)
+    {
+        $this->addFile($this->CSSArray, $files);
+        $this->addFile($this->AdminCSSArray, $files);
+    }
+
+    /**
+     * @throws Exception
+     */
     private function addFile(&$array_var, $files)
     {
+        if(in_dev()){
+            $cache_key = time();
+        } else {
+            $cache_key = str_replace('.', '', Update::getInstance()->getCurrentCoreVersion()) . Update::getInstance()->getCurrentCoreRevision();
+        }
+
         if (is_array($files)) {
             foreach ($files as $key => $file) {
-                if( !isset($array_var[$key]) ) {
-                    $array_var[$key] = $file;
+                if (!isset($array_var[$key])) {
+                    $array_var[$key . '?v=' . $cache_key] = $file;
                 }
             }
         } else {
-            if( !isset($array_var[$files]) ){
-                $array_var[$files] = 'global';
+            if (!isset($array_var[$files])) {
+                $array_var[$files . '?v=' . $cache_key] = 'global';
             }
         }
     }
@@ -218,7 +246,11 @@ class ClipBucket
     function get_anchor_function_list($place)
     {
         //Getting list of functions
-        return $this->anchor_function_list[$place] ?? false;
+        $place = $this->anchor_function_list[$place];
+        $all = $this->anchor_function_list['*'];
+
+        $funcs = array_merge($place ?? [], $all ?? []);
+        return !empty($funcs) ? $funcs : false;
     }
 
     function addMenuAdmin($menu_params, $order = null)
@@ -227,7 +259,11 @@ class ClipBucket
         $menu_already_exists = false;
 
         if (is_null($order)) {
-            $order = max(array_keys($Cbucket->AdminMenu)) + 1;
+            if( empty($Cbucket->AdminMenu) ){
+                $order = 1;
+            } else {
+                $order = max(array_keys($Cbucket->AdminMenu)) + 1;
+            }
         } else {
             if (array_key_exists($order, $Cbucket->AdminMenu)) {
                 do {
@@ -272,49 +308,49 @@ class ClipBucket
         $menu_dashboard = [
             'title'   => 'Dashboard'
             , 'class' => 'icon-dashboard'
-            , 'url'   => ADMIN_BASEURL . '/index.php'
+            , 'url'   => DirPath::getUrl('admin_area') . 'index.php'
         ];
         $this->addMenuAdmin($menu_dashboard, 1);
 
         if (NEED_UPDATE) {
             return;
         }
-        if ($per['web_config_access'] == "yes") {
+        if ($per['web_config_access'] == 'yes') {
             $menu_general = [
-                'title'   => 'General Configurations'
+                'title'   => lang('general')
                 , 'class' => 'glyphicon glyphicon-stats'
                 , 'sub'   => [
                     [
                         'title' => 'Reports &amp; Stats'
-                        , 'url' => ADMIN_BASEURL . '/reports.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'reports.php'
                     ]
                     , [
                         'title' => 'Website Configurations'
-                        , 'url' => ADMIN_BASEURL . '/main.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'main.php'
                     ]
                     , [
                         'title' => 'Email Templates'
-                        , 'url' => ADMIN_BASEURL . '/email_settings.php'
-                    ]
-                    , [
-                        'title' => 'Email Tester'
-                        , 'url' => ADMIN_BASEURL . '/email_tester.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'email_settings.php'
                     ]
                     , [
                         'title' => 'Language Settings'
-                        , 'url' => ADMIN_BASEURL . '/language_settings.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'language_settings.php'
                     ]
                     , [
                         'title' => 'Manage Pages'
-                        , 'url' => ADMIN_BASEURL . '/manage_pages.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'manage_pages.php'
                     ]
                     , [
                         'title' => 'Manage Comments'
-                        , 'url' => ADMIN_BASEURL . '/comments.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'comments.php'
                     ]
                     , [
                         'title' => 'Update Logos'
-                        , 'url' => ADMIN_BASEURL . '/upload_logo.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'upload_logo.php'
+                    ]
+                    , [
+                        'title' => lang('manage_tags')
+                        , 'url' => DirPath::getUrl('admin_area') . 'manage_tags.php'
                     ]
                 ]
             ];
@@ -322,34 +358,34 @@ class ClipBucket
             $this->addMenuAdmin($menu_general, 10);
         }
 
-        if ($per['member_moderation'] == "yes") {
+        if ($per['member_moderation'] == 'yes') {
             $menu_users = [
                 'title'   => lang('users')
                 , 'class' => 'glyphicon glyphicon-user'
                 , 'sub'   => [
                     [
                         'title' => lang('grp_manage_members_title')
-                        , 'url' => ADMIN_BASEURL . '/members.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'members.php'
                     ]
                     , [
                         'title' => 'Add Member'
-                        , 'url' => ADMIN_BASEURL . '/add_member.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'add_member.php'
                     ]
                     , [
                         'title' => lang('manage_categories')
-                        , 'url' => ADMIN_BASEURL . '/user_category.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'user_category.php'
                     ]
                     , [
                         'title' => 'Inactive Only'
-                        , 'url' => ADMIN_BASEURL . '/members.php?search=yes&status=ToActivate'
+                        , 'url' => DirPath::getUrl('admin_area') . 'members.php?search=yes&status=ToActivate'
                     ]
                     , [
                         'title' => 'Active Only'
-                        , 'url' => ADMIN_BASEURL . '/members.php?search=yes&status=Ok'
+                        , 'url' => DirPath::getUrl('admin_area') . 'members.php?search=yes&status=Ok'
                     ]
                     , [
                         'title' => 'Reported Users'
-                        , 'url' => ADMIN_BASEURL . '/flagged_users.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'flagged_users.php'
                     ]
                 ]
             ];
@@ -357,32 +393,32 @@ class ClipBucket
             if (config('disable_email') == 'no') {
                 $menu_users['sub'][] = [
                     'title' => 'Mass Email'
-                    , 'url' => ADMIN_BASEURL . '/mass_email.php'
+                    , 'url' => DirPath::getUrl('admin_area') . 'mass_email.php'
                 ];
             }
 
             if ($per['allow_manage_user_level'] == 'yes' || $userquery->level == 1) {
                 $menu_users['sub'][] = [
                     'title' => 'User Levels'
-                    , 'url' => ADMIN_BASEURL . '/user_levels.php'
+                    , 'url' => DirPath::getUrl('admin_area') . 'user_levels.php'
                 ];
             }
 
             $this->addMenuAdmin($menu_users, 20);
         }
 
-        if ($per['ad_manager_access'] == "yes" && config("enable_advertisement") == "yes") {
+        if ($per['ad_manager_access'] == 'yes' && config('enable_advertisement') == 'yes' ) {
             $menu_ad = [
                 'title'   => 'Advertisement'
                 , 'class' => 'glyphicon glyphicon-bullhorn'
                 , 'sub'   => [
                     [
                         'title' => 'Manage Advertisments'
-                        , 'url' => ADMIN_BASEURL . '/ads_manager.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'ads_manager.php'
                     ]
                     , [
                         'title' => 'Manage Placements'
-                        , 'url' => ADMIN_BASEURL . '/ads_add_placements.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'ads_add_placements.php'
                     ]
                 ]
             ];
@@ -390,41 +426,54 @@ class ClipBucket
             $this->addMenuAdmin($menu_ad, 30);
         }
 
-        if ($per['manage_template_access'] == "yes") {
+        if ($per['manage_template_access'] == 'yes') {
+            $sub = [];
+            global $cbtpl, $cbplayer;
+            if( count($cbtpl->get_templates()) > 1 || in_dev() ){
+                $sub[] = [
+                    'title' => 'Templates Manager'
+                    , 'url' => DirPath::getUrl('admin_area') . 'templates.php'
+                ];
+            }
+            $sub[] = [
+                'title' => 'Templates Editor'
+                , 'url' => DirPath::getUrl('admin_area') . 'template_editor.php'
+            ];
+
+
+            if( count($cbplayer->getPlayers()) > 1 || in_dev() ){
+                $sub[] = [
+                    'title' => 'Players Manager'
+                    , 'url' => DirPath::getUrl('admin_area') . 'manage_players.php'
+                ];
+            }
+            $sub[] = [
+                'title' => lang('player_settings')
+                , 'url' => DirPath::getUrl('admin_area') . 'manage_players.php?mode=show_settings'
+            ];
+
+
             $menu_template = [
                 'title'   => 'Templates And Players'
                 , 'class' => 'glyphicon glyphicon-play-circle'
-                , 'sub'   => [
-                    [
-                        'title' => 'Templates Manager'
-                        , 'url' => ADMIN_BASEURL . '/templates.php'
-                    ]
-                    , [
-                        'title' => 'Templates Editor'
-                        , 'url' => ADMIN_BASEURL . '/template_editor.php'
-                    ]
-                    , [
-                        'title' => 'Players Manager'
-                        , 'url' => ADMIN_BASEURL . '/manage_players.php'
-                    ]
-                    , [
-                        'title' => lang('player_settings')
-                        , 'url' => ADMIN_BASEURL . '/manage_players.php?mode=show_settings'
-                    ]
-                ]
+                , 'sub'   => $sub
             ];
 
             $this->addMenuAdmin($menu_template, 40);
         }
 
-        if ($per['plugins_moderation'] == "yes") {
+        global $cbplugin;
+        $plugins_available = count($cbplugin->getNewPlugins());
+        $plugins_installed = count($cbplugin->getInstalledPlugins());
+        $plugins_count = $plugins_available + $plugins_installed;
+        if ($per['plugins_moderation'] == 'yes' && ($plugins_count >= 1 || in_dev())) {
             $menu_plugin = [
                 'title'   => 'Plugin Manager'
                 , 'class' => 'glyphicon glyphicon-tasks'
                 , 'sub'   => [
                     [
                         'title' => 'Plugin Manager'
-                        , 'url' => ADMIN_BASEURL . '/plugin_manager.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'plugin_manager.php'
                     ]
                 ]
             ];
@@ -432,47 +481,47 @@ class ClipBucket
             $this->addMenuAdmin($menu_plugin, 50);
         }
 
-        if ($per['tool_box'] == "yes") {
+        if ($per['tool_box'] == 'yes') {
             $menu_tool = [
                 'title'   => lang('tool_box')
                 , 'class' => 'glyphicon glyphicon-wrench'
                 , 'sub'   => [
                     [
-                        'title' => 'Development Mode'
-                        , 'url' => ADMIN_BASEURL . '/dev_mode.php'
-                    ]
-                    , [
                         'title' => 'View online users'
-                        , 'url' => ADMIN_BASEURL . '/online_users.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'online_users.php'
                     ]
                     , [
                         'title' => 'Action Logs'
-                        , 'url' => ADMIN_BASEURL . '/action_logs.php?type=login'
+                        , 'url' => DirPath::getUrl('admin_area') . 'action_logs.php?type=login'
                     ]
                     , [
                         'title' => 'Conversion Queue Manager'
-                        , 'url' => ADMIN_BASEURL . '/cb_conversion_queue.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'cb_conversion_queue.php'
                     ]
                     , [
                         'title' => 'ReIndexer'
-                        , 'url' => ADMIN_BASEURL . '/reindex_cb.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'reindex_cb.php'
                     ]
                     , [
                         'title' => lang('admin_tool')
-                        , 'url' => ADMIN_BASEURL . '/admin_tool.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'admin_tool.php'
                     ]
                     , [
                         'title' => lang('system_info')
-                        , 'url' => ADMIN_BASEURL . '/system_info.php'
+                        , 'url' => DirPath::getUrl('admin_area') . 'system_info.php'
+                    ]
+                    , [
+                        'title' => lang('email_tester')
+                        , 'url' => DirPath::getUrl('admin_area') . 'email_tester.php'
                     ]
                 ]
             ];
 
 
-            if ($per['web_config_access'] == "yes") {
+            if ($per['web_config_access'] == 'yes') {
                 $menu_tool['sub'][] = [
                     'title' => 'Maintenance'
-                    , 'url' => ADMIN_BASEURL . '/maintenance.php'
+                    , 'url' => DirPath::getUrl('admin_area') . 'maintenance.php'
                 ];
             }
 
@@ -496,7 +545,7 @@ class ClipBucket
      * @param string $type
      *
      * @return array
-     * @throws \Exception
+     * @throws Exception
      */
     function get_countries($type = 'iso2'): array
     {
@@ -541,6 +590,7 @@ class ClipBucket
      * @param bool $ctemplate
      *
      * @return bool|mixed|string
+     * @throws Exception
      */
     function set_the_template($ctemplate = false)
     {
@@ -550,12 +600,13 @@ class ClipBucket
         }
         $template = $this->template;
 
+        require_once DirPath::get('styles') . $this->template . DIRECTORY_SEPARATOR . 'header.php';
         if (isset($_SESSION['the_template']) && $cbtpl->is_template($_SESSION['the_template'])) {
             $template = $_SESSION['the_template'];
         }
 
         if (isset($_GET['template'])) { //@todo : add permission
-            if (is_dir(STYLES_DIR . '/' . $_GET['template']) && $_GET['template']) {
+            if (is_dir(DirPath::get('styles') . $_GET['template']) && $_GET['template']) {
                 $template = $_GET['template'];
             }
         }
@@ -563,11 +614,11 @@ class ClipBucket
             $template = $_SESSION['the_template'] = $_GET['set_the_template'];
         }
 
-        if (!is_dir(STYLES_DIR . DIRECTORY_SEPARATOR . $template) || !$template) {
+        if (!is_dir(DirPath::get('styles') . $template) || !$template) {
             $template = $cbtpl->get_any_template();
         }
 
-        if (!is_dir(STYLES_DIR . DIRECTORY_SEPARATOR . $template) || !$template) {
+        if (!is_dir(DirPath::get('styles') . $template) || !$template) {
             exit("Unable to find any template, please goto <a href='http://clip-bucket.com/no-template-found'><strong>ClipBucket Support!</strong></a>");
         }
 
@@ -631,7 +682,7 @@ class ClipBucket
      * @param null $params
      *
      * @return array|void
-     * @throws \Exception
+     * @throws Exception
      */
     function head_menu($params = null)
     {
@@ -746,7 +797,7 @@ class ClipBucket
      * @param null $params
      *
      * @return array|void
-     * @throws \Exception
+     * @throws Exception
      */
     function foot_menu($params = null)
     {
@@ -765,14 +816,6 @@ class ClipBucket
         } else {
             return $this->foot_menu;
         }
-    }
-
-    /**
-     * Function used to call footer
-     */
-    function footer()
-    {
-        ANCHOR(['place' => 'the_footer']);
     }
 
     /**

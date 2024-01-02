@@ -21,7 +21,7 @@ class AdminTool
      *
      * @param array $condition
      * @return array
-     * @throws \Exception
+     * @throws Exception
      */
     private static function getTools($condition = []): array
     {
@@ -41,7 +41,7 @@ class AdminTool
      * Change status of tool to 'in progress'
      * @param $id
      * @return bool
-     * @throws \Exception
+     * @throws Exception
      */
     public static function setToolInProgress($id): bool
     {
@@ -63,7 +63,7 @@ class AdminTool
      * check if tool exist and execute the function stored in database
      * @param $id
      * @return false|void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function launch($id)
     {
@@ -82,7 +82,7 @@ class AdminTool
     /**
      * return all tools
      * @return array
-     * @throws \Exception
+     * @throws Exception
      */
     public static function getAllTools(): array
     {
@@ -93,7 +93,7 @@ class AdminTool
      * Return an admin tool by his id
      * @param $id
      * @return array
-     * @throws \Exception
+     * @throws Exception
      */
     public static function getToolById($id): array
     {
@@ -104,7 +104,7 @@ class AdminTool
      * Find videos which don't have thumbs and generate them
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function generateMissingThumbs($id_tool)
     {
@@ -118,7 +118,7 @@ class AdminTool
      * check videos to change to castable status if needed
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function updateCastableStatus($id_tool)
     {
@@ -131,7 +131,7 @@ class AdminTool
      * check videos to change to castable status if needed
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function updateBitsColor($id_tool)
     {
@@ -144,7 +144,7 @@ class AdminTool
      * check videos duration
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function updateVideoDuration($id_tool)
     {
@@ -152,21 +152,32 @@ class AdminTool
         $videos = $db->select(tbl('video'), '*', ' status LIKE \'Successful\'');
         self::executeTool($id_tool, $videos, 'update_duration');
     }
+    /**
+     * check videos duration which have duration at 0
+     * @param $id_tool
+     * @return void
+     * @throws Exception
+     */
+    public static function repairVideoDuration($id_tool)
+    {
+        global $db;
+        $videos = $db->select(tbl('video'), '*', ' status LIKE \'Successful\' AND duration = 0');
+        self::executeTool($id_tool, $videos, 'update_duration');
+    }
 
     /**
      * check videos duration
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function updateDataBaseVersion($id_tool)
     {
         global $db;
-        $version = $db->select(tbl('version'), '*')[0];
-        $folder_version = $version['version'];
-        $revision = $version['revision'];
 
-        $files = get_files_to_upgrade($folder_version, $revision);
+        $update = Update::getInstance();
+        $files = $update->getUpdateFiles();
+
         $installed_plugins = $db->select(tbl('plugins'), '*');
         $files = array_merge($files, get_plugins_files_to_upgrade($installed_plugins));
         if (empty($files)) {
@@ -178,7 +189,7 @@ class AdminTool
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     public static function resetCache($id_tool)
     {
@@ -188,11 +199,11 @@ class AdminTool
     /**
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function resetVideoLog($id_tool)
     {
-        $logs = rglob(LOGS_DIR . DIRECTORY_SEPARATOR . '*.log');
+        $logs = rglob(DirPath::get('logs') . '*.log');
 
         global $db;
         $logs_sql = array_map(function ($log) {
@@ -214,17 +225,21 @@ class AdminTool
     /**
      * @param $id_tool
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function cleanOrphanFiles($id_tool)
     {
         global $db;
         $video_file_name = [];
-        $logs = rglob(LOGS_DIR . DIRECTORY_SEPARATOR . '*.log');
-        $videos_mp4 = rglob(VIDEOS_DIR . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*.mp4');
-        $videos_hls = glob(VIDEOS_DIR . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
-        $thumbs = rglob(THUMBS_DIR . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*.jpg');
-        $subtitles = rglob(SUBTITLES_DIR . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*.srt');
+        $photo_file_name = [];
+        $array_user_id = [];
+        $logs = rglob(DirPath::get('logs') . '*.log');
+        $videos_mp4 = rglob(DirPath::get('videos') . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*.mp4');
+        $photos = rglob(DirPath::get('photos') . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*');
+        $videos_hls = glob(DirPath::get('videos') . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '[0-9]*' . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
+        $thumbs = rglob(DirPath::get('thumbs') . '[0-9]*' . DIRECTORY_SEPARATOR . '*.jpg');
+        $subtitles = rglob(DirPath::get('subtitles') . '[0-9]*' . DIRECTORY_SEPARATOR . '*.srt');
+        $userfeeds = rglob(DirPath::getUrl('userfeeds') . '[0-9]*' . DIRECTORY_SEPARATOR . '*.feed');
 
         $files = array_merge(
             array_map(function ($log) use (&$video_file_name) {
@@ -247,33 +262,79 @@ class AdminTool
                 $video_file_name[] = $vid_file_name;
                 return ['type' => 'video_mp', 'data' => $video, 'video' => $vid_file_name];
             }, $videos_mp4),
+            array_map(function ($photo) use (&$photo_file_name) {
+                $pic_file_name = explode('_', pathinfo($photo)['filename'])[0];
+                $photo_file_name[] = $pic_file_name;
+                return ['type' => 'photo', 'data' => $photo, 'photo' => $pic_file_name];
+            }, $photos),
             array_map(function ($video) use (&$video_file_name) {
                 $vid_file_name = basename($video);
                 $video_file_name[] = $vid_file_name;
                 return ['type' => 'video_hls', 'data' => $video, 'video' => $vid_file_name];
-            }, $videos_hls)
+            }, $videos_hls),
+            array_map(function ($userfeed) use (&$array_user_id) {
+                $user_id = basename(dirname($userfeed));
+                $array_user_id[] = $user_id;
+                return ['type' => 'userfeeds', 'data' => $userfeed, 'user' => $user_id];
+            }, $userfeeds)
         );
+
         $sql_video_file_name = array_map(function ($video_file_name) {
             return '\'' . mysql_clean($video_file_name) . '\'';
         }, array_unique($video_file_name));
+        $sql_photo_file_name = array_map(function ($photo_file_name) {
+            return '\'' . mysql_clean($photo_file_name) . '\'';
+        }, array_unique($photo_file_name));
+        $sql_user_id  = array_map(function ($array_user_id) {
+            return '\'' . mysql_clean($array_user_id) . '\'';
+        }, array_unique($array_user_id));
 
-        $query = 'SELECT file_name FROM ' . tbl('video') . ' WHERE file_name IN (' . implode(', ', $sql_video_file_name) . ')';
-        $result = $db->execute($query, 'select');
         $data = [];
-        if ($result) {
-            while ($row = $result->fetch_assoc()) {
-                $data[] = $row['file_name'];
+        $data['video'] = [];
+        $data['photo'] = [];
+        $data['user'] = [];
+
+        if( !empty($sql_video_file_name) ){
+            $query = 'SELECT file_name FROM ' . tbl('video') . ' WHERE file_name IN (' . implode(', ', $sql_video_file_name) . ')';
+            $result = $db->_select($query);
+            if ($result) {
+                foreach($result as $line){
+                    $data['video'][] = $line['file_name'];
+                }
             }
-            $result->close();
         }
+
+        if( !empty($sql_photo_file_name) ){
+            $query = 'SELECT filename FROM ' . tbl('photos') . ' WHERE filename IN (' . implode(', ', $sql_photo_file_name) . ')';
+            $result = $db->_select($query);
+            if ($result) {
+                foreach($result as $line){
+                    $data['photo'][] = $line['filename'];
+                }
+            }
+        }
+
+        if( !empty($sql_user_id) ){
+            $query = 'SELECT userid FROM ' . tbl('users') . ' WHERE userid IN (' . implode(', ', $sql_user_id) . ')';
+            $result = $db->_select($query);
+            if ($result) {
+                foreach($result as $line){
+                    $data['user'][] = $line['userid'];
+                }
+            }
+        }
+
         self::$temp = $data;
         self::executeTool($id_tool, $files, 'clean_orphan_files');
-        //remove empty folders
-        $empty_logs = glob(LOGS_DIR . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
-        $empty_subs = glob(SUBTITLES_DIR . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
-        $empty_thumbs = glob(THUMBS_DIR . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
-        $empty_vids = glob(VIDEOS_DIR . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
-        $empty_folders = array_merge($empty_logs, $empty_subs, $empty_thumbs, $empty_vids);
+
+        //remove already empty folders
+        $empty_logs = glob(DirPath::get('logs') . '*', GLOB_ONLYDIR);
+        $empty_subs = glob(DirPath::get('subtitles') . '*', GLOB_ONLYDIR);
+        $empty_thumbs = glob(DirPath::get('thumbs') . '*', GLOB_ONLYDIR);
+        $empty_vids = glob(DirPath::get('videos') . '*', GLOB_ONLYDIR);
+        $empty_pics = glob(DirPath::get('photos') . '*', GLOB_ONLYDIR);
+        $empty_userfeeds = glob(DirPath::get('cache') . '*', GLOB_ONLYDIR);
+        $empty_folders = array_merge($empty_logs, $empty_subs, $empty_thumbs, $empty_vids, $empty_pics, $empty_userfeeds);
         foreach ($empty_folders as $folder) {
             delete_empty_directories($folder);
         }
@@ -282,11 +343,36 @@ class AdminTool
 
     /**
      * @param $id_tool
+     * @return void
+     * @throws Exception
+     */
+    private static function cleanOrphanTags($id_tool)
+    {
+        global $db;
+        $query = '
+            SELECT T.* FROM '.tbl('tags').' T
+            LEFT JOIN '.tbl('video_tags').' VT ON T.id_tag = VT.id_tag
+            LEFT JOIN '.tbl('photo_tags').' PT ON T.id_tag = PT.id_tag
+            LEFT JOIN '.tbl('collection_tags').' CT ON T.id_tag = CT.id_tag
+            LEFT JOIN '.tbl('playlist_tags').' PLT ON T.id_tag = PLT.id_tag
+            LEFT JOIN '.tbl('user_tags').' UT ON T.id_tag = UT.id_tag
+            WHERE 1
+            GROUP BY T.id_tag
+            HAVING COUNT(VT.id_tag) = 0 AND COUNT(PT.id_tag) = 0 AND COUNT(CT.id_tag) = 0 AND COUNT(PLT.id_tag) = 0 AND COUNT(UT.id_tag) = 0;';
+        $tags = $db->_select($query);
+        $tags = array_map(function ($tag) {
+            return $tag['id_tag'];
+        }, $tags);
+        self::executeTool($id_tool, $tags, 'Tags::deleteTag');
+    }
+
+    /**
+     * @param $id_tool
      * @param $array
      * @param $function
      * @param $stop_on_error
      * @return void
-     * @throws \Exception
+     * @throws Exception
      */
     private static function executeTool($id_tool, $array, $function, $stop_on_error = false)
     {
@@ -325,7 +411,7 @@ class AdminTool
      * Set status to false in order to stop function execution at the next iteration
      * @param $id_tool
      * @return false|void
-     * @throws \Exception
+     * @throws Exception
      */
     public static function stop($id_tool)
     {

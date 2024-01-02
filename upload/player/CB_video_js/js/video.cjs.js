@@ -1,6 +1,6 @@
 /**
  * @license
- * Video.js 8.5.1 <http://videojs.com/>
+ * Video.js 8.6.1 <http://videojs.com/>
  * Copyright Brightcove, Inc. <https://www.brightcove.com/>
  * Available under Apache License Version 2.0
  * <https://github.com/videojs/video.js/blob/main/LICENSE>
@@ -42,7 +42,7 @@ var _resolveUrl__default = /*#__PURE__*/_interopDefaultLegacy(_resolveUrl);
 var _extends__default = /*#__PURE__*/_interopDefaultLegacy(_extends);
 var parseSidx__default = /*#__PURE__*/_interopDefaultLegacy(parseSidx);
 
-var version$6 = "8.5.1";
+var version$6 = "8.6.1";
 
 /**
  * An Object that contains lifecycle hooks as keys which point to an array
@@ -178,22 +178,30 @@ let history = [];
  * Log messages to the console and history based on the type of message
  *
  * @private
- * @param  {string} type
+ * @param  {string} name
  *         The name of the console method to use.
  *
- * @param  {Array} args
+ * @param  {Object} log
  *         The arguments to be passed to the matching console method.
+ *
+ * @param {string} [styles]
+ *        styles for name
  */
-const LogByTypeFactory = (name, log) => (type, level, args) => {
+const LogByTypeFactory = (name, log, styles) => (type, level, args) => {
   const lvl = log.levels[level];
   const lvlRegExp = new RegExp(`^(${lvl})$`);
+  let resultName = name;
   if (type !== 'log') {
     // Add the type to the front of the message when it's not "log".
     args.unshift(type.toUpperCase() + ':');
   }
+  if (styles) {
+    resultName = `%c${name}`;
+    args.unshift(styles);
+  }
 
   // Add console prefix after adding to history.
-  args.unshift(name + ':');
+  args.unshift(resultName + ':');
 
   // Add a clone of the args at this point to history.
   if (history) {
@@ -227,7 +235,7 @@ const LogByTypeFactory = (name, log) => (type, level, args) => {
   }
   fn[Array.isArray(args) ? 'apply' : 'call'](window__default["default"].console, args);
 };
-function createLogger$1(name) {
+function createLogger$1(name, delimiter = ':', styles = '') {
   // This is the private tracking variable for logging level.
   let level = 'info';
 
@@ -260,10 +268,10 @@ function createLogger$1(name) {
   };
 
   // This is the logByType helper that the logging methods below use
-  logByType = LogByTypeFactory(name, log);
+  logByType = LogByTypeFactory(name, log, styles);
 
   /**
-   * Create a new sublogger which chains the old name to the new name.
+   * Create a new subLogger which chains the old name to the new name.
    *
    * For example, doing `videojs.log.createLogger('player')` and then using that logger will log the following:
    * ```js
@@ -271,11 +279,35 @@ function createLogger$1(name) {
    *  // > VIDEOJS: player: foo
    * ```
    *
-   * @param {string} name
+   * @param {string} subName
    *        The name to add call the new logger
+   * @param {string} [subDelimiter]
+   *        Optional delimiter
+   * @param {string} [subStyles]
+   *        Optional styles
    * @return {Object}
    */
-  log.createLogger = subname => createLogger$1(name + ': ' + subname);
+  log.createLogger = (subName, subDelimiter, subStyles) => {
+    const resultDelimiter = subDelimiter !== undefined ? subDelimiter : delimiter;
+    const resultStyles = subStyles !== undefined ? subStyles : styles;
+    const resultName = `${name} ${resultDelimiter} ${subName}`;
+    return createLogger$1(resultName, resultDelimiter, resultStyles);
+  };
+
+  /**
+   * Create a new logger.
+   *
+   * @param {string} newName
+   *        The name for the new logger
+   * @param {string} [newDelimiter]
+   *        Optional delimiter
+   * @param {string} [newStyles]
+   *        Optional styles
+   * @return {Object}
+   */
+  log.createNewLogger = (newName, newDelimiter, newStyles) => {
+    return createLogger$1(newName, newDelimiter, newStyles);
+  };
 
   /**
    * Enumeration of available logging levels, where the keys are the level names
@@ -312,7 +344,7 @@ function createLogger$1(name) {
    * If a string matching a key from {@link module:log.levels} is provided, acts
    * as a setter.
    *
-   * @param  {string} [lvl]
+   * @param  {'all'|'debug'|'info'|'warn'|'error'|'off'} [lvl]
    *         Pass a valid level to set a new logging level.
    *
    * @return {string}
@@ -1990,7 +2022,7 @@ function _cleanUpEvents(elem, type) {
  * @param {Element|Object} elem
  *        Element or object to bind listeners to
  *
- * @param {string} type
+ * @param {string[]} types
  *        Type of event to bind to.
  *
  * @param {Function} callback
@@ -2713,7 +2745,7 @@ class EventTarget$2 {
 /**
  * All event listeners should follow the following format.
  *
- * @callback EventTarget~EventListener
+ * @callback EventListener
  * @this {EventTarget}
  *
  * @param {Event} event
@@ -2730,7 +2762,7 @@ class EventTarget$2 {
  *         will have extra functionality. See that function for more information.
  *
  * @property EventTarget.prototype.allowedEvents_
- * @private
+ * @protected
  */
 EventTarget$2.prototype.allowedEvents_ = {};
 
@@ -3966,7 +3998,6 @@ class Component$1 {
   /**
    * Add a child `Component` inside the current `Component`.
    *
-   *
    * @param {string|Component} child
    *        The name or instance of a child to add.
    *
@@ -3976,6 +4007,7 @@ class Component$1 {
    *
    * @param {number} [index=this.children_.length]
    *        The index to attempt to add a child into.
+   *
    *
    * @return {Component}
    *         The `Component` that gets added as a child. When using a string the
@@ -4431,9 +4463,8 @@ class Component$1 {
    * @param {boolean} [skipListeners]
    *        Skip the componentresize event trigger
    *
-   * @return {number|string}
-   *         The width when getting, zero if there is no width. Can be a string
-   *           postpixed with '%' or 'px'.
+   * @return {number|undefined}
+   *         The width when getting, zero if there is no width
    */
   width(num, skipListeners) {
     return this.dimension('width', num, skipListeners);
@@ -4449,9 +4480,8 @@ class Component$1 {
    * @param {boolean} [skipListeners]
    *        Skip the componentresize event trigger
    *
-   * @return {number|string}
-   *         The width when getting, zero if there is no width. Can be a string
-   *         postpixed with '%' or 'px'.
+   * @return {number|undefined}
+   *         The height when getting, zero if there is no height
    */
   height(num, skipListeners) {
     return this.dimension('height', num, skipListeners);
@@ -4497,7 +4527,7 @@ class Component$1 {
    * @param  {boolean} [skipListeners]
    *         Skip componentresize event trigger
    *
-   * @return {number}
+   * @return {number|undefined}
    *         The dimension when getting or 0 if unset
    */
   dimension(widthOrHeight, num, skipListeners) {
@@ -4672,7 +4702,7 @@ class Component$1 {
    * delegates to `handleKeyDown`. This means anyone calling `handleKeyPress`
    * will not see their method calls stop working.
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        The event that caused this function to be called.
    */
   handleKeyPress(event) {
@@ -4684,7 +4714,7 @@ class Component$1 {
    * support toggling the controls through a tap on the video. They get enabled
    * because every sub-component would have extra overhead otherwise.
    *
-   * @private
+   * @protected
    * @fires Component#tap
    * @listens Component#touchstart
    * @listens Component#touchmove
@@ -6309,7 +6339,7 @@ class TrackList extends EventTarget$2 {
  * Events that can be called with on + eventName. See {@link EventHandler}.
  *
  * @property {Object} TrackList#allowedEvents_
- * @private
+ * @protected
  */
 TrackList.prototype.allowedEvents_ = {
   change: 'change',
@@ -6359,7 +6389,7 @@ class AudioTrackList extends TrackList {
   /**
    * Create an instance of this class.
    *
-   * @param {AudioTrack[]} [tracks=[]]
+   * @param { import('./audio-track').default[] } [tracks=[]]
    *        A list of `AudioTrack` to instantiate the list with.
    */
   constructor(tracks = []) {
@@ -7462,7 +7492,9 @@ class TextTrack extends Track {
    */
   addCue(originalCue) {
     let cue = originalCue;
-    if (cue.constructor && cue.constructor.name !== 'VTTCue') {
+
+    // Testing if the cue is a VTTCue in a way that survives minification
+    if (!('getCueAsHTML' in cue)) {
       cue = new window__default["default"].vttjs.VTTCue(originalCue.startTime, originalCue.endTime, originalCue.text);
       for (const prop in originalCue) {
         if (!(prop in cue)) {
@@ -7505,6 +7537,7 @@ class TextTrack extends Track {
 
 /**
  * cuechange - One or more cues in the track have become active or stopped being active.
+ * @protected
  */
 TextTrack.prototype.allowedEvents_ = {
   cuechange: 'cuechange'
@@ -7763,6 +7796,10 @@ class HTMLTrackElement extends EventTarget$2 {
     });
   }
 }
+
+/**
+ * @protected
+ */
 HTMLTrackElement.prototype.allowedEvents_ = {
   load: 'load'
 };
@@ -7856,7 +7893,7 @@ ALL.names = [].concat(REMOTE.names).concat(NORMAL.names);
  * * `var SourceObject = {src: 'http://ex.com/video.mp4', type: 'video/mp4'};`
    * `var SourceString = 'http://example.com/some-video.mp4';`
  *
- * @typedef {Object|string} Tech~SourceObject
+ * @typedef {Object|string} SourceObject
  *
  * @property {string} src
  *           The url to the source
@@ -8292,7 +8329,7 @@ class Tech extends Component$1 {
    * > NOTE: This implementation is incomplete. It does not track the played `TimeRange`.
    *         It only checks whether the source has played at all or not.
    *
-   * @return {TimeRange}
+   * @return { import('../utils/time').TimeRange }
    *         - A single time range if this video has played
    *         - An empty set of ranges if not.
    */
@@ -9056,7 +9093,7 @@ Tech.withSourceHandlers = function (_Tech) {
    *
    * TODO: Answer question: should 'probably' be prioritized over 'maybe'
    *
-   * @param {Tech~SourceObject} source
+   * @param {SourceObject} source
    *        The source object
    *
    * @param {Object} options
@@ -9081,7 +9118,7 @@ Tech.withSourceHandlers = function (_Tech) {
   /**
    * Check if the tech can support the given source.
    *
-   * @param {Tech~SourceObject} srcObj
+   * @param {SourceObject} srcObj
    *        The source object
    *
    * @param {Object} options
@@ -9136,7 +9173,7 @@ Tech.withSourceHandlers = function (_Tech) {
    * and source handlers.
    * Should never be called unless a source handler was found.
    *
-   * @param {Tech~SourceObject} source
+   * @param {SourceObject} source
    *        A source object with src and type keys
    */
   _Tech.prototype.setSource = function (source) {
@@ -9639,7 +9676,7 @@ function fixSource(src) {
   return src;
 }
 
-var icons = "<svg xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <symbol viewBox=\"0 0 16 16\" id=\"vjs-icon-play\">\n      <path d=\"M2 1v14l12-7z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-pause\">\n       <path d=\"M10 4H5v16h5V4zm9 0h-5v16h5V4z\"/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-audio\">\n      <g><rect fill='none' height='24' width='24'/></g><g><path d='M12,3c-4.97,0-9,4.03-9,9v7c0,1.1,0.9,2,2,2h4v-8H5v-1c0-3.87,3.13-7,7-7s7,3.13,7,7v1h-4v8h4c1.1,0,2-0.9,2-2v-7 C21,7.03,16.97,3,12,3z'/></g>\n    </symbol>\n    <symbol viewBox=\"0 0 576 512\" id=\"vjs-icon-captions\">\n      <path d='M0 96C0 60.7 28.7 32 64 32H512c35.3 0 64 28.7 64 64V416c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zM200 208c14.2 0 27 6.1 35.8 16c8.8 9.9 24 10.7 33.9 1.9s10.7-24 1.9-33.9c-17.5-19.6-43.1-32-71.5-32c-53 0-96 43-96 96s43 96 96 96c28.4 0 54-12.4 71.5-32c8.8-9.9 8-25-1.9-33.9s-25-8-33.9 1.9c-8.8 9.9-21.6 16-35.8 16c-26.5 0-48-21.5-48-48s21.5-48 48-48zm144 48c0-26.5 21.5-48 48-48c14.2 0 27 6.1 35.8 16c8.8 9.9 24 10.7 33.9 1.9s10.7-24 1.9-33.9c-17.5-19.6-43.1-32-71.5-32c-53 0-96 43-96 96s43 96 96 96c28.4 0 54-12.4 71.5-32c8.8-9.9 8-25-1.9-33.9s-25-8-33.9 1.9c-8.8 9.9-21.6 16-35.8 16c-26.5 0-48-21.5-48-48z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-subtitles\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 448 512\" id=\"vjs-icon-fullscreen-enter\">\n      <path d='M0 180V56c0-13.3 10.7-24 24-24h124c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H64v84c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12zM288 44v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12V56c0-13.3-10.7-24-24-24H300c-6.6 0-12 5.4-12 12zm148 276h-40c-6.6 0-12 5.4-12 12v84h-84c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24V332c0-6.6-5.4-12-12-12zM160 468v-40c0-6.6-5.4-12-12-12H64v-84c0-6.6-5.4-12-12-12H12c-6.6 0-12 5.4-12 12v124c0 13.3 10.7 24 24 24h124c6.6 0 12-5.4 12-12z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-fullscreen-exit\">\n      <path d=\"M16,9h5a1,1,0,0,0,0-2H17V3a1,1,0,0,0-2,0V8A1,1,0,0,0,16,9ZM8,15H3a1,1,0,0,0,0,2H7v4a1,1,0,0,0,2,0V16A1,1,0,0,0,8,15ZM8,2A1,1,0,0,0,7,3V7H3A1,1,0,0,0,3,9H8A1,1,0,0,0,9,8V3A1,1,0,0,0,8,2ZM21,15H16a1,1,0,0,0-1,1v5a1,1,0,0,0,2,0V17h4a1,1,0,0,0,0-2Z\"/>\n    </symbol>\n    <symbol viewBox=\"0 0 512 512\" id=\"vjs-icon-play-circle\">\n      <path d='M464 256A208 208 0 1 0 48 256a208 208 0 1 0 416 0zM0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zM188.3 147.1c7.6-4.2 16.8-4.1 24.3 .5l144 88c7.1 4.4 11.5 12.1 11.5 20.5s-4.4 16.1-11.5 20.5l-144 88c-7.4 4.5-16.7 4.7-24.3 .5s-12.3-12.2-12.3-20.9V168c0-8.7 4.7-16.7 12.3-20.9z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-volume-mute\">\n      <path d='M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-volume-low\">\n      <path d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M7 9v6h4l5 5V4l-5 5H7z\"/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-volume-medium\">\n      <path d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z\"/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-volume-high\">\n      <path d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z\"/>\n    </symbol>\n    <symbol viewBox=\"0 0 512 512\" id=\"vjs-icon-spinner\">\n      <path d='M304 48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zm0 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM48 304a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm464-48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM142.9 437A48 48 0 1 0 75 369.1 48 48 0 1 0 142.9 437zm0-294.2A48 48 0 1 0 75 75a48 48 0 1 0 67.9 67.9zM369.1 437A48 48 0 1 0 437 369.1 48 48 0 1 0 369.1 437z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-hd\">\n      <path d='M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm2-6h4c.55 0 1 .45 1 1v4c0 .55-.45 1-1 1h-4V9zm1.5 4.5h2v-3h-2v3z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-chapters\">\n      <path d='M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-downloading\">\n      <path d='M18.32,4.26C16.84,3.05,15.01,2.25,13,2.05v2.02c1.46,0.18,2.79,0.76,3.9,1.62L18.32,4.26z M19.93,11h2.02 c-0.2-2.01-1-3.84-2.21-5.32L18.31,7.1C19.17,8.21,19.75,9.54,19.93,11z M18.31,16.9l1.43,1.43c1.21-1.48,2.01-3.32,2.21-5.32 h-2.02C19.75,14.46,19.17,15.79,18.31,16.9z M13,19.93v2.02c2.01-0.2,3.84-1,5.32-2.21l-1.43-1.43 C15.79,19.17,14.46,19.75,13,19.93z M15.59,10.59L13,13.17V7h-2v6.17l-2.59-2.59L7,12l5,5l5-5L15.59,10.59z M11,19.93v2.02 c-5.05-0.5-9-4.76-9-9.95s3.95-9.45,9-9.95v2.02C7.05,4.56,4,7.92,4,12S7.05,19.44,11,19.93z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-file-download\">\n      <path d='M18,15v3H6v-3H4v3c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2v-3H18z M17,11l-1.41-1.41L13,12.17V4h-2v8.17L8.41,9.59L7,11l5,5 L17,11z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-file-download-done\">\n      <polygon points='20.13,5.41 18.72,4 9.53,13.19 5.28,8.95 3.87,10.36 9.53,16.02'/><rect height='2' width='14' x='5' y='18'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-file-download-off\">\n      <path d='M18,15.17V15h2v2.17L18,15.17z M15.41,12.59L17,11l-1.41-1.41L14,11.17L15.41,12.59z M13,10.17V4h-2v4.17L13,10.17z M21.19,21.19l-1.78-1.78L2.81,2.81L1.39,4.22l6.19,6.19L7,11l5,5l0.59-0.59L15.17,18H6v-3H4v3c0,1.1,0.9,2,2,2h11.17l2.61,2.61 L21.19,21.19z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-share\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-cog\">\n      <path d='M0,0h24v24H0V0z' fill='none'/><path d='M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 448 512\" id=\"vjs-icon-square\">\n      <path d='M384 80c8.8 0 16 7.2 16 16V416c0 8.8-7.2 16-16 16H64c-8.8 0-16-7.2-16-16V96c0-8.8 7.2-16 16-16H384zM64 32C28.7 32 0 60.7 0 96V416c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 512 512\" id=\"vjs-icon-circle\">\n      <path d='M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-circle-outline\">\n      <path d='M12,2C6.47,2,2,6.47,2,12c0,5.53,4.47,10,10,10s10-4.47,10-10C22,6.47,17.53,2,12,2z M12,20c-4.42,0-8-3.58-8-8 c0-4.42,3.58-8,8-8s8,3.58,8,8C20,16.42,16.42,20,12,20z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-circle-inner-circle\">\n      <path d='M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3-8c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-cancel\">\n      <path d='M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-repeat\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-replay\">\n      <path d='M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z'/>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-replay-5\">\n      <path d='m17.68852 98-8.69633 8.69633 8.69633 8.69634 2.48665-2.48434-4.31928-4.31928h1.3011c4.93015 0 9.07149 1.72189 12.42399 5.16511 3.35251 3.44322 5.02876 7.63753 5.02876 12.58345h3.54972c0-2.95809-.55264-5.7293-1.657-8.3127-1.10435-2.5834-2.62238-4.84095-4.555-6.77357-1.93262-1.93262-4.19017-3.45065-6.77357-4.55501-2.5834-1.10435-5.35462-1.65699-8.31271-1.65699H15.5l4.61508-4.61509zm-8.07929 21.65879v13.86144h11.35631v5.00796H9.60923V143h12.699c.83466 0 1.55075-.29818 2.14693-.89436.59619-.59619.89436-1.30996.89436-2.14462v-7.78117c0-.83466-.29817-1.55075-.89436-2.14693-.59618-.59618-1.31227-.89436-2.14693-.89436h-8.22719v-5.09578h11.26848v-4.38399z'/>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-replay-10\">\n      <path d='M42.314792 125.62978c0-4.99676-1.693476-9.23445-5.080438-12.71305-3.386962-3.47861-7.570851-5.21791-12.551676-5.21791h-1.314946l4.363203 4.3632-2.510335 2.51034-8.786174-8.78619L25.2206 97l2.450567 2.45057-4.662053 4.66205h1.374714c2.988489 0 5.787713.55785 8.397671 1.67355 2.609949 1.11571 4.891163 2.64981 6.843654 4.60229 1.952481 1.95248 3.486576 4.2337 4.602275 6.84365 1.115709 2.60995 1.673563 5.40917 1.673563 8.39767zM8.1829433 142v-19.65677H3.17603v-4.5433h9.642939V142Zm13.6299297 0c-1.155923 0-2.126398-.39251-2.911424-1.17755-.778861-.77885-1.168286-1.74624-1.168286-2.90215v-16.04066c0-1.15593.392524-2.1264 1.17755-2.91144.77886-.77885 1.746237-1.16827 2.90216-1.16827h7.695814c1.155914 0 2.126388.39251 2.911425 1.17755.77885.77886 1.168275 1.74623 1.168275 2.90216v16.04066c0 1.15591-.392513 2.12639-1.177549 2.91142-.778851.77885-1.746237 1.16828-2.902151 1.16828Zm.556316-4.63603h6.583172v-15.02074h-6.583172z'/>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-replay-30\">\n      <path d='m26.046875 97-8.732422 8.73242 8.732422 8.73242 2.496094-2.49414-4.335938-4.33789h1.306641c4.950749 0 9.108097 1.72991 12.474609 5.1875 3.366504 3.4576 5.050781 7.66818 5.050781 12.63477h3.564454c0-2.97045-.555098-5.75152-1.664063-8.3457-1.108965-2.59419-2.633522-4.86205-4.574219-6.80274-1.940688-1.94069-4.208545-3.46525-6.802734-4.57422-2.59419-1.10897-5.375262-1.66406-8.345703-1.66406h-1.367188l4.634766-4.63477zM2.5546875 117.53125v4.6875H12.851562v5.25H5.8730469v4.6875h6.9785151v5.15625H2.5546875V142H13.361328c1.06088 0 1.950319-.39495 2.667969-1.18555.71765-.79059 1.076172-1.7727 1.076172-2.9414v-16.2168c0-1.1687-.358522-2.14886-1.076172-2.93945-.71765-.79059-1.607089-1.18555-2.667969-1.18555zm22.4824215.14063c-1.148936 0-2.110612.38991-2.884765 1.16406-.780292.78029-1.171875 1.74365-1.171875 2.89258v15.94336c0 1.14892.387966 2.1106 1.162109 2.88476.780302.78029 1.745595 1.17188 2.894531 1.17188h7.648438c1.148936 0 2.110613-.38795 2.884765-1.16211.780294-.78029 1.169922-1.74561 1.169922-2.89453v-15.94336c0-1.14893-.386013-2.11061-1.160156-2.88477-.780293-.78029-1.745595-1.17187-2.894531-1.17187zm.552735 4.51757h6.544922v14.92969h-6.544922z'/>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-forward-5\">\n      <path d='m29.50843 97-2.43193 2.42962 4.6253 4.6253h-1.3642c-2.96464 0-5.74198.55386-8.3311 1.66066-2.58912 1.1068-4.85167 2.62819-6.78857 4.56508-1.93689 1.9369-3.45828 4.19945-4.56508 6.78857-1.1068 2.58911-1.66066 5.36646-1.66066 8.3311h3.55757c0-4.95687 1.67996-9.16047 5.03989-12.6113 3.35992-3.45084 7.51042-5.17654 12.45149-5.17654h1.30398l-4.32653 4.32883 2.48984 2.48984 8.71558-8.71558zm-9.78332 21.60945v13.8898h11.38144v5.01905H19.72511V142h12.72711c.83651 0 1.55186-.29884 2.14937-.89634.5975-.59751.89634-1.31286.89634-2.14936v-7.7984c0-.83651-.29884-1.55418-.89634-2.15168-.59751-.5975-1.31286-.89634-2.14937-.89634h-8.2454v-5.10706h11.29111v-4.39137z'/>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-forward-10\">\n      <path d='m23.118923 97-2.385761 2.38349 4.537491 4.53749h-1.338298c-2.908354 0-5.632974.54335-8.172936 1.62913-2.539963 1.08579-4.759558 2.57829-6.659682 4.47842-1.900125 1.90012-3.39263 4.11972-4.478415 6.65968-1.085785 2.53996-1.629134 5.26458-1.629134 8.17294h3.490028c0-4.86277 1.648071-8.98656 4.944206-12.37188 3.296134-3.38532 7.367841-5.07826 12.215097-5.07826h1.279222l-4.244383 4.24665 2.442565 2.44257 8.550114-8.55012zm-9.520322 21.44913v4.42161h4.871497V142h4.512496v-23.55087zm18.136328 0c-1.124919 0-2.06632.37811-2.824287 1.13608-.763982.76398-1.147437 1.70845-1.147437 2.83337v15.61197c0 1.12492.380382 2.06631 1.138349 2.82428.763983.76398 1.708456 1.14517 2.833375 1.14517h7.489021c1.12492 0 2.06632-.37811 2.82428-1.13608.76399-.76398 1.14517-1.70845 1.14517-2.83337v-15.61197c0-1.12492-.37811-2.06632-1.13608-2.82429-.76398-.76398-1.70845-1.14516-2.83337-1.14516zm.540773 4.42161h6.407468v14.61676h-6.407468z'/>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-forward-30\">\n      <path d='m25.548631 97-2.436697 2.43438 4.634367 4.63436H26.37943c-2.970448 0-5.753239.55495-8.347429 1.66392-2.594191 1.10897-4.861176 2.63334-6.801867 4.57403-1.940693 1.94069-3.465063 4.20767-4.57403 6.80187-1.108967 2.59419-1.663916 5.37698-1.663916 8.34742h3.56454c0-4.96658 1.683258-9.17841 5.049766-12.63601 3.366507-3.4576 7.525145-5.18669 12.475891-5.18669h1.306534l-4.335002 4.33733 2.494714 2.49471 8.73266-8.73266zm-11.552266 20.53092v4.68774h10.296787v5.24934h-6.978237v4.68774h6.978237v5.15652H13.996365V142h10.807333c1.060879 0 1.94879-.39527 2.666443-1.18586.717653-.79059 1.076789-1.77158 1.076789-2.94028v-16.2168c0-1.1687-.359136-2.14969-1.076789-2.94028-.717653-.79059-1.605564-1.18586-2.666443-1.18586zm21.173741.16708c-1.148937 0-2.110436.38851-2.884586 1.16266-.780294.78029-1.171935 1.74493-1.171935 2.89387v15.94296c0 1.14894.388502 2.11043 1.162652 2.88458.780294.78029 1.744932 1.16962 2.893869 1.16962h7.648904c1.14894 0 2.11044-.38619 2.88459-1.16033.78029-.7803 1.16961-1.74493 1.16961-2.89387v-15.94296c0-1.14894-.38618-2.11044-1.16033-2.88459-.78029-.78029-1.74493-1.17194-2.89387-1.17194zm.552317 4.51602h6.541957v14.93115h-6.541957z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 512 512\" xmlns:sketch='http://www.bohemiancoding.com/sketch/ns' id=\"vjs-icon-audio-description\">\n      <g id='Page-1' stroke='none' stroke-width='1' sketch:type='MSPage'><g id='AD' sketch:type='MSArtboardGroup'><g id='g24' sketch:type='MSLayerGroup' transform='translate(226.904216, 162.124958)'><path d='M0.385466989,219.226204 L0.385466989,0.867948105 C50.7660025,-0.149278544 89.4938709,-2.16027378 118.016886,17.9940357 C145.39121,37.3362698 166.750707,74.9591545 162.906445,123.318579 C158.839382,174.474203 121.571663,217.457893 73.1311827,221.793795 C49.0460488,223.949377 1.1583283,221.793795 1.1583283,221.793795 C1.1583283,221.793795 0.318395733,220.441758 0.385466989,219.226204 M49.1404882,164.421786 C80.5703101,165.681697 102.34881,147.788744 105.636072,119.036417 C110.038491,80.5268177 84.4473371,55.4838492 47.5943801,58.2399576 L47.5943801,161.852062 C47.5585317,163.318404 48.1702678,164.071194 49.1404882,164.421786' id='path26' sketch:type='MSShapeGroup'></path></g><g id='g28' sketch:type='MSLayerGroup' transform='translate(383.779991, 168.926023)'><path d='M0,212.402042 C13.3360014,216.111401 17.386874,201.342635 23.2151349,190.99422 C35.936702,168.422877 45.5086182,139.400143 45.6604922,106.220214 C45.8813648,58.6259492 27.3172746,23.7033002 10.059532,0.0383859113 L1.54919183,0.0383859113 C0.96289654,3.91152436 3.77564916,7.35260805 5.41542574,10.3142944 C18.5814362,34.0755999 30.7818519,66.8674044 30.9556975,104.507776 C31.1545985,147.683822 16.7932549,183.786198 0,212.402042' id='path30' sketch:type='MSShapeGroup'></path></g><g id='g32' sketch:type='MSLayerGroup' transform='translate(425.153705, 168.926023)'><path d='M0,212.402042 C13.3360014,216.111401 17.3841758,201.340502 23.2151349,190.99422 C35.936702,168.422877 45.5066909,139.400143 45.6604922,106.220214 C45.8813648,58.6259492 27.3172746,23.7033002 10.059532,0.0383859113 L1.54919183,0.0383859113 C0.96289654,3.91152436 3.77487823,7.35346107 5.41542574,10.3142944 C18.5814362,34.0755999 30.7822374,66.8674044 30.9556975,104.507776 C31.1545985,147.683822 16.7932549,183.786198 0,212.402042' id='path34' sketch:type='MSShapeGroup'></path></g><g id='g36' sketch:type='MSLayerGroup' transform='translate(466.260868, 168.926023)'><path d='M0,212.402042 C13.3360014,216.111401 17.3841758,201.340502 23.2151349,190.99422 C35.936702,168.422877 45.5066909,139.400143 45.6604922,106.220214 C45.8813648,58.6259492 27.3172746,23.7033002 10.059532,0.0383859113 L1.54919183,0.0383859113 C0.96289654,3.91152436 3.77487823,7.35303456 5.41542574,10.3142944 C18.5814362,34.0755999 30.7818519,66.8674044 30.9556975,104.507776 C31.1545985,147.683822 16.7932549,183.786198 0,212.402042' id='path38' sketch:type='MSShapeGroup'></path></g><path d='M4.4765625,383.005158 L72.5800993,383.005158 L91.1530552,354.521486 L155.321745,354.386058 C155.321745,354.386058 155.386889,373.799083 155.386889,383.005158 L204.142681,383.005158 L204.142681,160.308263 L145.326586,160.308263 C139.673713,169.845383 4.4765625,383.005158 4.4765625,383.005158 L4.4765625,383.005158 Z M157.144233,237.722611 L157.144233,308.881058 L116.6914,308.610203 L157.144233,237.722611 L157.144233,237.722611 Z' id='path22' sketch:type='MSShapeGroup'></path></g></g>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-next-item\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-previous-item\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M6 6h2v12H6zm3.5 6l8.5 6V6z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-shuffle\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-cast\">\n      <path d='M0 0h24v24H0z' fill='none'/><path d='M0 0h24v24H0z' fill='none' opacity='.1'/><path d='M21 3H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-picture-in-picture-enter\">\n      <path d='M0 0h24v24H0V0z' fill='none'/><path d='M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 22 18\" id=\"vjs-icon-picture-in-picture-exit\">\n      <path d='M18 4H4v10h14V4zm4 12V1.98C22 .88 21.1 0 20 0H2C.9 0 0 .88 0 1.98V16c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H2V1.97h18v14.05z'/><path fill='none' d='M-1-3h24v24H-1z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 320 512\" id=\"vjs-icon-facebook\">\n      <path d='M279.14 288l14.22-92.66h-88.91v-60.13c0-25.35 12.42-50.06 52.24-50.06h40.42V6.26S260.43 0 225.36 0c-73.22 0-121.08 44.38-121.08 124.72v70.62H22.89V288h81.39v224h100.17V288z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 448 512\" id=\"vjs-icon-linkedin\">\n      <path d='M100.28 448H7.4V148.9h92.88zM53.79 108.1C24.09 108.1 0 83.5 0 53.8a53.79 53.79 0 0 1 107.58 0c0 29.7-24.1 54.3-53.79 54.3zM447.9 448h-92.68V302.4c0-34.7-.7-79.2-48.29-79.2-48.29 0-55.69 37.7-55.69 76.7V448h-92.78V148.9h89.08v40.8h1.3c12.4-23.5 42.69-48.3 87.88-48.3 94 0 111.28 61.9 111.28 142.3V448z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 512 512\" id=\"vjs-icon-twitter\">\n      <path d='M459.37 151.716c.325 4.548.325 9.097.325 13.645 0 138.72-105.583 298.558-298.558 298.558-59.452 0-114.68-17.219-161.137-47.106 8.447.974 16.568 1.299 25.34 1.299 49.055 0 94.213-16.568 130.274-44.832-46.132-.975-84.792-31.188-98.112-72.772 6.498.974 12.995 1.624 19.818 1.624 9.421 0 18.843-1.3 27.614-3.573-48.081-9.747-84.143-51.98-84.143-102.985v-1.299c13.969 7.797 30.214 12.67 47.431 13.319-28.264-18.843-46.781-51.005-46.781-87.391 0-19.492 5.197-37.36 14.294-52.954 51.655 63.675 129.3 105.258 216.365 109.807-1.624-7.797-2.599-15.918-2.599-24.04 0-57.828 46.782-104.934 104.934-104.934 30.213 0 57.502 12.67 76.67 33.137 23.715-4.548 46.456-13.32 66.599-25.34-7.798 24.366-24.366 44.833-46.132 57.827 21.117-2.273 41.584-8.122 60.426-16.243-14.292 20.791-32.161 39.308-52.628 54.253z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 320 512\" id=\"vjs-icon-tumblr\">\n      <path d='M309.8 480.3c-13.6 14.5-50 31.7-97.4 31.7-120.8 0-147-88.8-147-140.6v-144H17.9c-5.5 0-10-4.5-10-10v-68c0-7.2 4.5-13.6 11.3-16 62-21.8 81.5-76 84.3-117.1.8-11 6.5-16.3 16.1-16.3h70.9c5.5 0 10 4.5 10 10v115.2h83c5.5 0 10 4.4 10 9.9v81.7c0 5.5-4.5 10-10 10h-83.4V360c0 34.2 23.7 53.6 68 35.8 4.8-1.9 9-3.2 12.7-2.2 3.5.9 5.8 3.4 7.4 7.9l22 64.3c1.8 5 3.3 10.6-.4 14.5z'/>\n    </symbol>\n    <symbol viewBox=\"0 0 496 512\" id=\"vjs-icon-pinterest\">\n      <path d='M496 256c0 137-111 248-248 248-25.6 0-50.2-3.9-73.4-11.1 10.1-16.5 25.2-43.5 30.8-65 3-11.6 15.4-59 15.4-59 8.1 15.4 31.7 28.5 56.8 28.5 74.8 0 128.7-68.8 128.7-154.3 0-81.9-66.9-143.2-152.9-143.2-107 0-163.9 71.8-163.9 150.1 0 36.4 19.4 81.7 50.3 96.1 4.7 2.2 7.2 1.2 8.3-3.3.8-3.4 5-20.3 6.9-28.1.6-2.5.3-4.7-1.7-7.1-10.1-12.5-18.3-35.3-18.3-56.6 0-54.7 41.4-107.6 112-107.6 60.9 0 103.6 41.5 103.6 100.9 0 67.1-33.9 113.6-78 113.6-24.3 0-42.6-20.1-36.7-44.8 7-29.5 20.5-61.3 20.5-82.6 0-19-10.2-34.9-31.4-34.9-24.9 0-44.9 25.7-44.9 60.2 0 22 7.4 36.8 7.4 36.8s-24.5 103.8-29 123.2c-5 21.4-3 51.6-.9 71.2C65.4 450.9 0 361.1 0 256 0 119 111 8 248 8s248 111 248 248z'/>\n    </symbol>\n  </defs>\n</svg>";
+var icons = "<svg xmlns=\"http://www.w3.org/2000/svg\">\n  <defs>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-play\">\n      <path d=\"M16 10v28l22-14z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-pause\">\n      <path d=\"M12 38h8V10h-8v28zm16-28v28h8V10h-8z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-audio\">\n      <path d=\"M24 2C14.06 2 6 10.06 6 20v14c0 3.31 2.69 6 6 6h6V24h-8v-4c0-7.73 6.27-14 14-14s14 6.27 14 14v4h-8v16h6c3.31 0 6-2.69 6-6V20c0-9.94-8.06-18-18-18z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-captions\">\n      <path d=\"M38 8H10c-2.21 0-4 1.79-4 4v24c0 2.21 1.79 4 4 4h28c2.21 0 4-1.79 4-4V12c0-2.21-1.79-4-4-4zM22 22h-3v-1h-4v6h4v-1h3v2a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2zm14 0h-3v-1h-4v6h4v-1h3v2a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-subtitles\">\n      <path d=\"M40 8H8c-2.21 0-4 1.79-4 4v24c0 2.21 1.79 4 4 4h32c2.21 0 4-1.79 4-4V12c0-2.21-1.79-4-4-4zM8 24h8v4H8v-4zm20 12H8v-4h20v4zm12 0h-8v-4h8v4zm0-8H20v-4h20v4z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-fullscreen-enter\">\n      <path d=\"M14 28h-4v10h10v-4h-6v-6zm-4-8h4v-6h6v-4H10v10zm24 14h-6v4h10V28h-4v6zm-6-24v4h6v6h4V10H28z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-fullscreen-exit\">\n      <path d=\"M10 32h6v6h4V28H10v4zm6-16h-6v4h10V10h-4v6zm12 22h4v-6h6v-4H28v10zm4-22v-6h-4v10h10v-4h-6z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-play-circle\">\n      <path d=\"M20 33l12-9-12-9v18zm4-29C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm0 36c-8.82 0-16-7.18-16-16S15.18 8 24 8s16 7.18 16 16-7.18 16-16 16z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-volume-mute\">\n      <path d=\"M33 24c0-3.53-2.04-6.58-5-8.05v4.42l4.91 4.91c.06-.42.09-.85.09-1.28zm5 0c0 1.88-.41 3.65-1.08 5.28l3.03 3.03C41.25 29.82 42 27 42 24c0-8.56-5.99-15.72-14-17.54v4.13c5.78 1.72 10 7.07 10 13.41zM8.55 6L6 8.55 15.45 18H6v12h8l10 10V26.55l8.51 8.51c-1.34 1.03-2.85 1.86-4.51 2.36v4.13a17.94 17.94 0 0 0 7.37-3.62L39.45 42 42 39.45l-18-18L8.55 6zM24 8l-4.18 4.18L24 16.36V8z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-volume-low\">\n      <path d=\"M14 18v12h8l10 10V8L22 18h-8z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-volume-medium\">\n      <path d=\"M37 24c0-3.53-2.04-6.58-5-8.05v16.11c2.96-1.48 5-4.53 5-8.06zm-27-6v12h8l10 10V8L18 18h-8z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-volume-high\">\n      <path d=\"M6 18v12h8l10 10V8L14 18H6zm27 6c0-3.53-2.04-6.58-5-8.05v16.11c2.96-1.48 5-4.53 5-8.06zM28 6.46v4.13c5.78 1.72 10 7.07 10 13.41s-4.22 11.69-10 13.41v4.13c8.01-1.82 14-8.97 14-17.54S36.01 8.28 28 6.46z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-spinner\">\n      <path d=\"M18.8 21l9.53-16.51C26.94 4.18 25.49 4 24 4c-4.8 0-9.19 1.69-12.64 4.51l7.33 12.69.11-.2zm24.28-3c-1.84-5.85-6.3-10.52-11.99-12.68L23.77 18h19.31zm.52 2H28.62l.58 1 9.53 16.5C41.99 33.94 44 29.21 44 24c0-1.37-.14-2.71-.4-4zm-26.53 4l-7.8-13.5C6.01 14.06 4 18.79 4 24c0 1.37.14 2.71.4 4h14.98l-2.31-4zM4.92 30c1.84 5.85 6.3 10.52 11.99 12.68L24.23 30H4.92zm22.54 0l-7.8 13.51c1.4.31 2.85.49 4.34.49 4.8 0 9.19-1.69 12.64-4.51L29.31 26.8 27.46 30z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 24 24\" id=\"vjs-icon-hd\">\n      <path d=\"M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9.5v-2h-2v2H6V9h1.5v2.5h2V9H11v6zm2-6h4c.55 0 1 .45 1 1v4c0 .55-.45 1-1 1h-4V9zm1.5 4.5h2v-3h-2v3z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-chapters\">\n      <path d=\"M6 26h4v-4H6v4zm0 8h4v-4H6v4zm0-16h4v-4H6v4zm8 8h28v-4H14v4zm0 8h28v-4H14v4zm0-20v4h28v-4H14z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 40 40\" id=\"vjs-icon-downloading\">\n      <path d=\"M18.208 36.875q-3.208-.292-5.979-1.729-2.771-1.438-4.812-3.729-2.042-2.292-3.188-5.229-1.146-2.938-1.146-6.23 0-6.583 4.334-11.416 4.333-4.834 10.833-5.5v3.166q-5.167.75-8.583 4.646Q6.25 14.75 6.25 19.958q0 5.209 3.396 9.104 3.396 3.896 8.562 4.646zM20 28.417L11.542 20l2.083-2.083 4.917 4.916v-11.25h2.916v11.25l4.875-4.916L28.417 20zm1.792 8.458v-3.167q1.833-.25 3.541-.958 1.709-.708 3.167-1.875l2.333 2.292q-1.958 1.583-4.25 2.541-2.291.959-4.791 1.167zm6.791-27.792q-1.541-1.125-3.25-1.854-1.708-.729-3.541-1.021V3.042q2.5.25 4.77 1.208 2.271.958 4.271 2.5zm4.584 21.584l-2.25-2.25q1.166-1.5 1.854-3.209.687-1.708.937-3.541h3.209q-.292 2.5-1.229 4.791-.938 2.292-2.521 4.209zm.541-12.417q-.291-1.833-.958-3.562-.667-1.73-1.833-3.188l2.375-2.208q1.541 1.916 2.458 4.208.917 2.292 1.167 4.75z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-file-download\">\n      <path d=\"M10.8 40.55q-1.35 0-2.375-1T7.4 37.15v-7.7h3.4v7.7h26.35v-7.7h3.4v7.7q0 1.4-1 2.4t-2.4 1zM24 32.1L13.9 22.05l2.45-2.45 5.95 5.95V7.15h3.4v18.4l5.95-5.95 2.45 2.45z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-file-download-done\">\n      <path d=\"M9.8 40.5v-3.45h28.4v3.45zm9.2-9.05L7.4 19.85l2.45-2.35L19 26.65l19.2-19.2 2.4 2.4z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-file-download-off\">\n      <path d=\"M4.9 4.75L43.25 43.1 41 45.3l-4.75-4.75q-.05.05-.075.025-.025-.025-.075-.025H10.8q-1.35 0-2.375-1T7.4 37.15v-7.7h3.4v7.7h22.05l-7-7-1.85 1.8L13.9 21.9l1.85-1.85L2.7 7zm26.75 14.7l2.45 2.45-3.75 3.8-2.45-2.5zM25.7 7.15V21.1l-3.4-3.45V7.15z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-share\">\n      <path d=\"M36 32.17c-1.52 0-2.89.59-3.93 1.54L17.82 25.4c.11-.45.18-.92.18-1.4s-.07-.95-.18-1.4l14.1-8.23c1.07 1 2.5 1.62 4.08 1.62 3.31 0 6-2.69 6-6s-2.69-6-6-6-6 2.69-6 6c0 .48.07.95.18 1.4l-14.1 8.23c-1.07-1-2.5-1.62-4.08-1.62-3.31 0-6 2.69-6 6s2.69 6 6 6c1.58 0 3.01-.62 4.08-1.62l14.25 8.31c-.1.42-.16.86-.16 1.31A5.83 5.83 0 1 0 36 32.17z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-cog\">\n      <path d=\"M38.86 25.95c.08-.64.14-1.29.14-1.95s-.06-1.31-.14-1.95l4.23-3.31c.38-.3.49-.84.24-1.28l-4-6.93c-.25-.43-.77-.61-1.22-.43l-4.98 2.01c-1.03-.79-2.16-1.46-3.38-1.97L29 4.84c-.09-.47-.5-.84-1-.84h-8c-.5 0-.91.37-.99.84l-.75 5.3a14.8 14.8 0 0 0-3.38 1.97L9.9 10.1a1 1 0 0 0-1.22.43l-4 6.93c-.25.43-.14.97.24 1.28l4.22 3.31C9.06 22.69 9 23.34 9 24s.06 1.31.14 1.95l-4.22 3.31c-.38.3-.49.84-.24 1.28l4 6.93c.25.43.77.61 1.22.43l4.98-2.01c1.03.79 2.16 1.46 3.38 1.97l.75 5.3c.08.47.49.84.99.84h8c.5 0 .91-.37.99-.84l.75-5.3a14.8 14.8 0 0 0 3.38-1.97l4.98 2.01a1 1 0 0 0 1.22-.43l4-6.93c.25-.43.14-.97-.24-1.28l-4.22-3.31zM24 31c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-square\">\n      <path d=\"M36 8H12c-2.21 0-4 1.79-4 4v24c0 2.21 1.79 4 4 4h24c2.21 0 4-1.79 4-4V12c0-2.21-1.79-4-4-4zm0 28H12V12h24v24z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-circle\">\n      <circle cx=\"24\" cy=\"24\" r=\"20\"></circle>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-circle-outline\">\n      <path d=\"M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm0 36c-8.82 0-16-7.18-16-16S15.18 8 24 8s16 7.18 16 16-7.18 16-16 16z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-circle-inner-circle\">\n      <path d=\"M24 4C12.97 4 4 12.97 4 24s8.97 20 20 20 20-8.97 20-20S35.03 4 24 4zm0 36c-8.82 0-16-7.18-16-16S15.18 8 24 8s16 7.18 16 16-7.18 16-16 16zm6-16c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6 6 2.69 6 6z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-cancel\">\n      <path d=\"M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm10 27.17L31.17 34 24 26.83 16.83 34 14 31.17 21.17 24 14 16.83 16.83 14 24 21.17 31.17 14 34 16.83 26.83 24 34 31.17z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-replay\">\n      <path d=\"M24 10V2L14 12l10 10v-8c6.63 0 12 5.37 12 12s-5.37 12-12 12-12-5.37-12-12H8c0 8.84 7.16 16 16 16s16-7.16 16-16-7.16-16-16-16z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-repeat\">\n      <path d=\"M14 14h20v6l8-8-8-8v6H10v12h4v-8zm20 20H14v-6l-8 8 8 8v-6h24V26h-4v8z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-replay-5\">\n      <path d=\"M17.689 98l-8.697 8.696 8.697 8.697 2.486-2.485-4.32-4.319h1.302c4.93 0 9.071 1.722 12.424 5.165 3.352 3.443 5.029 7.638 5.029 12.584h3.55c0-2.958-.553-5.73-1.658-8.313-1.104-2.583-2.622-4.841-4.555-6.774-1.932-1.932-4.19-3.45-6.773-4.555-2.584-1.104-5.355-1.657-8.313-1.657H15.5l4.615-4.615zm-8.08 21.659v13.861h11.357v5.008H9.609V143h12.7c.834 0 1.55-.298 2.146-.894.596-.597.895-1.31.895-2.145v-7.781c0-.835-.299-1.55-.895-2.147a2.929 2.929 0 0 0-2.147-.894h-8.227v-5.096H25.35v-4.384z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-replay-10\">\n      <path d=\"M42.315 125.63c0-4.997-1.694-9.235-5.08-12.713-3.388-3.479-7.571-5.218-12.552-5.218h-1.315l4.363 4.363-2.51 2.51-8.787-8.786L25.221 97l2.45 2.45-4.662 4.663h1.375c2.988 0 5.788.557 8.397 1.673 2.61 1.116 4.892 2.65 6.844 4.602 1.953 1.953 3.487 4.234 4.602 6.844 1.116 2.61 1.674 5.41 1.674 8.398zM8.183 142v-19.657H3.176V117.8h9.643V142zm13.63 0c-1.156 0-2.127-.393-2.912-1.178-.778-.778-1.168-1.746-1.168-2.902v-16.04c0-1.156.393-2.127 1.178-2.912.779-.779 1.746-1.168 2.902-1.168h7.696c1.156 0 2.126.392 2.911 1.177.779.78 1.168 1.747 1.168 2.903v16.04c0 1.156-.392 2.127-1.177 2.912-.779.779-1.746 1.168-2.902 1.168zm.556-4.636h6.583v-15.02H22.37z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-replay-30\">\n      <path d=\"M26.047 97l-8.733 8.732 8.733 8.733 2.496-2.494-4.336-4.338h1.307c4.95 0 9.108 1.73 12.474 5.187 3.367 3.458 5.051 7.668 5.051 12.635h3.565c0-2.97-.556-5.751-1.665-8.346-1.109-2.594-2.633-4.862-4.574-6.802-1.94-1.941-4.208-3.466-6.803-4.575-2.594-1.109-5.375-1.664-8.345-1.664H23.85l4.634-4.634zM2.555 117.531v4.688h10.297v5.25H5.873v4.687h6.979v5.156H2.555V142H13.36c1.061 0 1.95-.395 2.668-1.186.718-.79 1.076-1.772 1.076-2.94v-16.218c0-1.168-.358-2.149-1.076-2.94-.717-.79-1.607-1.185-2.668-1.185zm22.482.14c-1.149 0-2.11.39-2.885 1.165-.78.78-1.172 1.744-1.172 2.893v15.943c0 1.149.388 2.11 1.163 2.885.78.78 1.745 1.172 2.894 1.172h7.649c1.148 0 2.11-.388 2.884-1.163.78-.78 1.17-1.745 1.17-2.894v-15.943c0-1.15-.386-2.111-1.16-2.885-.78-.78-1.746-1.172-2.894-1.172zm.553 4.518h6.545v14.93H25.59z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-forward-5\">\n      <path d=\"M29.508 97l-2.431 2.43 4.625 4.625h-1.364c-2.965 0-5.742.554-8.332 1.66-2.589 1.107-4.851 2.629-6.788 4.566-1.937 1.937-3.458 4.2-4.565 6.788-1.107 2.59-1.66 5.367-1.66 8.331h3.557c0-4.957 1.68-9.16 5.04-12.611 3.36-3.45 7.51-5.177 12.451-5.177h1.304l-4.326 4.33 2.49 2.49 8.715-8.716zm-9.783 21.61v13.89h11.382v5.018H19.725V142h12.727a2.93 2.93 0 0 0 2.15-.896 2.93 2.93 0 0 0 .896-2.15v-7.798c0-.837-.299-1.554-.896-2.152a2.93 2.93 0 0 0-2.15-.896h-8.245V123h11.29v-4.392z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-forward-10\">\n      <path d=\"M23.119 97l-2.386 2.383 4.538 4.538h-1.339c-2.908 0-5.633.543-8.173 1.63-2.54 1.085-4.76 2.577-6.66 4.478-1.9 1.9-3.392 4.12-4.478 6.66-1.085 2.54-1.629 5.264-1.629 8.172h3.49c0-4.863 1.648-8.986 4.944-12.372 3.297-3.385 7.368-5.078 12.216-5.078h1.279l-4.245 4.247 2.443 2.442 8.55-8.55zm-9.52 21.45v4.42h4.871V142h4.513v-23.55zm18.136 0c-1.125 0-2.066.377-2.824 1.135-.764.764-1.148 1.709-1.148 2.834v15.612c0 1.124.38 2.066 1.139 2.824.764.764 1.708 1.145 2.833 1.145h7.489c1.125 0 2.066-.378 2.824-1.136.764-.764 1.145-1.709 1.145-2.833v-15.612c0-1.125-.378-2.067-1.136-2.825-.764-.764-1.708-1.145-2.833-1.145zm.54 4.42h6.408v14.617h-6.407z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 96 48 48\" id=\"vjs-icon-forward-30\">\n      <path d=\"M25.549 97l-2.437 2.434 4.634 4.635H26.38c-2.97 0-5.753.555-8.347 1.664-2.594 1.109-4.861 2.633-6.802 4.574-1.94 1.94-3.465 4.207-4.574 6.802-1.109 2.594-1.664 5.377-1.664 8.347h3.565c0-4.967 1.683-9.178 5.05-12.636 3.366-3.458 7.525-5.187 12.475-5.187h1.307l-4.335 4.338 2.495 2.494 8.732-8.732zm-11.553 20.53v4.689h10.297v5.249h-6.978v4.688h6.978v5.156H13.996V142h10.808c1.06 0 1.948-.395 2.666-1.186.718-.79 1.077-1.771 1.077-2.94v-16.217c0-1.169-.36-2.15-1.077-2.94-.718-.79-1.605-1.186-2.666-1.186zm21.174.168c-1.149 0-2.11.389-2.884 1.163-.78.78-1.172 1.745-1.172 2.894v15.942c0 1.15.388 2.11 1.162 2.885.78.78 1.745 1.17 2.894 1.17h7.649c1.149 0 2.11-.386 2.885-1.16.78-.78 1.17-1.746 1.17-2.895v-15.942c0-1.15-.387-2.11-1.161-2.885-.78-.78-1.745-1.172-2.894-1.172zm.552 4.516h6.542v14.931h-6.542z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 512 512\" id=\"vjs-icon-audio-description\">\n      <g fill-rule=\"evenodd\"><path d=\"M227.29 381.351V162.993c50.38-1.017 89.108-3.028 117.631 17.126 27.374 19.342 48.734 56.965 44.89 105.325-4.067 51.155-41.335 94.139-89.776 98.475-24.085 2.155-71.972 0-71.972 0s-.84-1.352-.773-2.568m48.755-54.804c31.43 1.26 53.208-16.633 56.495-45.386 4.403-38.51-21.188-63.552-58.041-60.796v103.612c-.036 1.466.575 2.22 1.546 2.57\"></path><path d=\"M383.78 381.328c13.336 3.71 17.387-11.06 23.215-21.408 12.722-22.571 22.294-51.594 22.445-84.774.221-47.594-18.343-82.517-35.6-106.182h-8.51c-.587 3.874 2.226 7.315 3.865 10.276 13.166 23.762 25.367 56.553 25.54 94.194.2 43.176-14.162 79.278-30.955 107.894\"></path><path d=\"M425.154 381.328c13.336 3.71 17.384-11.061 23.215-21.408 12.721-22.571 22.291-51.594 22.445-84.774.221-47.594-18.343-82.517-35.6-106.182h-8.511c-.586 3.874 2.226 7.315 3.866 10.276 13.166 23.762 25.367 56.553 25.54 94.194.2 43.176-14.162 79.278-30.955 107.894\"></path><path d=\"M466.26 381.328c13.337 3.71 17.385-11.061 23.216-21.408 12.722-22.571 22.292-51.594 22.445-84.774.221-47.594-18.343-82.517-35.6-106.182h-8.51c-.587 3.874 2.225 7.315 3.865 10.276 13.166 23.762 25.367 56.553 25.54 94.194.2 43.176-14.162 79.278-30.955 107.894M4.477 383.005H72.58l18.573-28.484 64.169-.135s.065 19.413.065 28.62h48.756V160.307h-58.816c-5.653 9.537-140.85 222.697-140.85 222.697zm152.667-145.282v71.158l-40.453-.27 40.453-70.888z\"></path></g>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-next-item\">\n      <path d=\"M12 36l17-12-17-12v24zm20-24v24h4V12h-4z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-previous-item\">\n      <path d=\"M12 12h4v24h-4zm7 12l17 12V12z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-shuffle\">\n      <path d=\"M21.17 18.34L10.83 8 8 10.83l10.34 10.34 2.83-2.83zM29 8l4.09 4.09L8 37.17 10.83 40l25.09-25.09L40 19V8H29zm.66 18.83l-2.83 2.83 6.26 6.26L29 40h11V29l-4.09 4.09-6.25-6.26z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-cast\">\n      <path d=\"M42 6H6c-2.21 0-4 1.79-4 4v6h4v-6h36v28H28v4h14c2.21 0 4-1.79 4-4V10c0-2.21-1.79-4-4-4zM2 36v6h6c0-3.31-2.69-6-6-6zm0-8v4c5.52 0 10 4.48 10 10h4c0-7.73-6.27-14-14-14zm0-8v4c9.94 0 18 8.06 18 18h4c0-12.15-9.85-22-22-22z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 48 48\" id=\"vjs-icon-picture-in-picture-enter\">\n      <path d=\"M38 22H22v11.99h16V22zm8 16V9.96C46 7.76 44.2 6 42 6H6C3.8 6 2 7.76 2 9.96V38c0 2.2 1.8 4 4 4h36c2.2 0 4-1.8 4-4zm-4 .04H6V9.94h36v28.1z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 22 18\" id=\"vjs-icon-picture-in-picture-exit\">\n      <path d=\"M18 4H4v10h14V4zm4 12V1.98C22 .88 21.1 0 20 0H2C.9 0 0 .88 0 1.98V16c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2zm-2 .02H2V1.97h18v14.05z\"></path>\n      <path fill=\"none\" d=\"M-1-3h24v24H-1z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 1792 1792\" id=\"vjs-icon-facebook\">\n      <path d=\"M1343 12v264h-157q-86 0-116 36t-30 108v189h293l-39 296h-254v759H734V905H479V609h255V391q0-186 104-288.5T1115 0q147 0 228 12z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 1792 1792\" id=\"vjs-icon-linkedin\">\n      <path d=\"M477 625v991H147V625h330zm21-306q1 73-50.5 122T312 490h-2q-82 0-132-49t-50-122q0-74 51.5-122.5T314 148t133 48.5T498 319zm1166 729v568h-329v-530q0-105-40.5-164.5T1168 862q-63 0-105.5 34.5T999 982q-11 30-11 81v553H659q2-399 2-647t-1-296l-1-48h329v144h-2q20-32 41-56t56.5-52 87-43.5T1285 602q171 0 275 113.5t104 332.5z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 1792 1792\" id=\"vjs-icon-twitter\">\n      <path d=\"M1684 408q-67 98-162 167 1 14 1 42 0 130-38 259.5T1369.5 1125 1185 1335.5t-258 146-323 54.5q-271 0-496-145 35 4 78 4 225 0 401-138-105-2-188-64.5T285 1033q33 5 61 5 43 0 85-11-112-23-185.5-111.5T172 710v-4q68 38 146 41-66-44-105-115t-39-154q0-88 44-163 121 149 294.5 238.5T884 653q-8-38-8-74 0-134 94.5-228.5T1199 256q140 0 236 102 109-21 205-78-37 115-142 178 93-10 186-50z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 1792 1792\" id=\"vjs-icon-tumblr\">\n      <path d=\"M1328 1329l80 237q-23 35-111 66t-177 32q-104 2-190.5-26T787 1564t-95-106-55.5-120-16.5-118V676H452V461q72-26 129-69.5t91-90 58-102 34-99T779 12q1-5 4.5-8.5T791 0h244v424h333v252h-334v518q0 30 6.5 56t22.5 52.5 49.5 41.5 81.5 14q78-2 134-29z\"></path>\n    </symbol>\n    <symbol viewBox=\"0 0 1792 1792\" id=\"vjs-icon-pinterest\">\n      <path d=\"M1664 896q0 209-103 385.5T1281.5 1561 896 1664q-111 0-218-32 59-93 78-164 9-34 54-211 20 39 73 67.5t114 28.5q121 0 216-68.5t147-188.5 52-270q0-114-59.5-214T1180 449t-255-63q-105 0-196 29t-154.5 77-109 110.5-67 129.5T377 866q0 104 40 183t117 111q30 12 38-20 2-7 8-31t8-30q6-23-11-43-51-61-51-151 0-151 104.5-259.5T904 517q151 0 235.5 82t84.5 213q0 170-68.5 289T980 1220q-61 0-98-43.5T859 1072q8-35 26.5-93.5t30-103T927 800q0-50-27-83t-77-33q-62 0-105 57t-43 142q0 73 25 122l-99 418q-17 70-13 177-206-91-333-281T128 896q0-209 103-385.5T510.5 231 896 128t385.5 103T1561 510.5 1664 896z\"></path>\n    </symbol>\n  </defs>\n</svg>";
 
 /**
  * @file loader.js
@@ -9915,7 +9952,7 @@ class ClickableComponent extends Component$1 {
    *
    * By default, if the key is Space or Enter, it will trigger a `click` event.
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        The `keydown` event that caused this function to be called.
    *
    * @listens keydown
@@ -10671,7 +10708,7 @@ class Button extends ClickableComponent {
    * This gets called when a `Button` has focus and `keydown` is triggered via a key
    * press.
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        The event that caused this function to get called.
    *
    * @listens keydown
@@ -10725,7 +10762,7 @@ class BigPlayButton extends Button {
    * This gets called when a `BigPlayButton` "clicked". See {@link ClickableComponent}
    * for more detailed information on what a click can be.
    *
-   * @param {KeyboardEvent} event
+   * @param {KeyboardEvent|MouseEvent|TouchEvent} event
    *        The `keydown`, `tap`, or `click` event that caused this function to be
    *        called.
    *
@@ -10736,7 +10773,7 @@ class BigPlayButton extends Button {
     const playPromise = this.player_.play();
 
     // exit early if clicked via the mouse
-    if (this.mouseused_ && event.clientX && event.clientY) {
+    if (this.mouseused_ && 'clientX' in event && 'clientY' in event) {
       silencePromise(playPromise);
       if (this.player_.tech(true)) {
         this.player_.tech(true).focus();
@@ -10756,10 +10793,29 @@ class BigPlayButton extends Button {
       this.setTimeout(playFocus, 1);
     }
   }
+
+  /**
+   * Event handler that is called when a `BigPlayButton` receives a
+   * `keydown` event.
+   *
+   * @param {KeyboardEvent} event
+   *        The `keydown` event that caused this function to be called.
+   *
+   * @listens keydown
+   */
   handleKeyDown(event) {
     this.mouseused_ = false;
     super.handleKeyDown(event);
   }
+
+  /**
+   * Handle `mousedown` events on the `BigPlayButton`.
+   *
+   * @param {MouseEvent} event
+   *        `mousedown` or `touchstart` event that triggered this function
+   *
+   * @listens mousedown
+   */
   handleMouseDown(event) {
     this.mouseused_ = true;
   }
@@ -10845,7 +10901,7 @@ class CloseButton extends Button {
    *
    * By default, if the key is Esc, it will trigger a `click` event.
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        The `keydown` event that caused this function to be called.
    *
    * @listens keydown
@@ -14472,7 +14528,7 @@ class Menu extends Component$1 {
   /**
    * Handle a `keydown` event on this menu. This listener is added in the constructor.
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        A `keydown` event that happened on the menu.
    *
    * @listens keydown
@@ -15069,7 +15125,7 @@ class MenuItem extends ClickableComponent {
    * Ignore keys which are used by the menu, but pass any other ones up. See
    * {@link ClickableComponent#handleKeyDown} for instances where this is called.
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        The `keydown` event that caused this function to be called.
    *
    * @listens keydown
@@ -15285,7 +15341,7 @@ Component$1.registerComponent('TextTrackMenuItem', TextTrackMenuItem);
  */
 
 /**
- * A special menu item for turning of a specific type of text track
+ * A special menu item for turning off a specific type of text track
  *
  * @extends TextTrackMenuItem
  */
@@ -16727,7 +16783,7 @@ const selectConfigs = {
     selector: '.vjs-edge-style > select',
     id: '%s',
     label: 'Text Edge Style',
-    options: [['none', 'None'], ['raised', 'Raised'], ['depressed', 'Depressed'], ['uniform', 'Uniform'], ['dropshadow', 'Dropshadow']]
+    options: [['none', 'None'], ['raised', 'Raised'], ['depressed', 'Depressed'], ['uniform', 'Uniform'], ['dropshadow', 'Drop shadow']]
   },
   fontFamily: {
     selector: '.vjs-font-family > select',
@@ -20128,8 +20184,8 @@ const DEFAULT_BREAKPOINTS = {
  *
  * After an instance has been created it can be accessed globally in three ways:
  * 1. By calling `videojs.getPlayer('example_video_1');`
- * 2. By calling `videojs('example_video_1');` (not recomended)
- * 2. By using it directly via  `videojs.players.example_video_1;`
+ * 2. By calling `videojs('example_video_1');` (not recommended)
+ * 2. By using it directly via `videojs.players.example_video_1;`
  *
  * @extends Component
  * @global
@@ -21868,7 +21924,9 @@ class Player extends Component$1 {
    */
   handleTechError_() {
     const error = this.tech_.error();
-    this.error(error);
+    if (error) {
+      this.error(error);
+    }
   }
 
   /**
@@ -22824,7 +22882,7 @@ class Player extends Component$1 {
    * This allows player-wide hotkeys (either as defined below, or optionally
    * by an external function).
    *
-   * @param {Event} event
+   * @param {KeyboardEvent} event
    *        The `keydown` event that caused this function to be called.
    *
    * @listens keydown
@@ -25028,7 +25086,7 @@ const markPluginAsActive = (player, name) => {
  * @param  {Player} player
  *         A Video.js player instance.
  *
- * @param  {Plugin~PluginEventHash} hash
+ * @param  {PluginEventHash} hash
  *         A plugin event hash.
  *
  * @param  {boolean} [before]
@@ -25181,7 +25239,7 @@ class Plugin {
    * @param   {Object} [hash={}]
    *          An object to be used as event an event hash.
    *
-   * @return {Plugin~PluginEventHash}
+   * @return {PluginEventHash}
    *          An event hash object with provided properties mixed-in.
    */
   getEventHash(hash = {}) {
@@ -25200,7 +25258,7 @@ class Plugin {
    *
    * @param   {Object} [hash={}]
    *          Additional data hash to merge with a
-   *          {@link Plugin~PluginEventHash|PluginEventHash}.
+   *          {@link PluginEventHash|PluginEventHash}.
    *
    * @return {boolean}
    *          Whether or not default was prevented.
@@ -25416,7 +25474,7 @@ Player.prototype.hasPlugin = function (name) {
  * Signals that a plugin is about to be set up on a player.
  *
  * @event    Player#beforepluginsetup
- * @type     {Plugin~PluginEventHash}
+ * @type     {PluginEventHash}
  */
 
 /**
@@ -25424,14 +25482,14 @@ Player.prototype.hasPlugin = function (name) {
  * is the name of the plugin.
  *
  * @event    Player#beforepluginsetup:$name
- * @type     {Plugin~PluginEventHash}
+ * @type     {PluginEventHash}
  */
 
 /**
  * Signals that a plugin has just been set up on a player.
  *
  * @event    Player#pluginsetup
- * @type     {Plugin~PluginEventHash}
+ * @type     {PluginEventHash}
  */
 
 /**
@@ -25439,11 +25497,11 @@ Player.prototype.hasPlugin = function (name) {
  * is the name of the plugin.
  *
  * @event    Player#pluginsetup:$name
- * @type     {Plugin~PluginEventHash}
+ * @type     {PluginEventHash}
  */
 
 /**
- * @typedef  {Object} Plugin~PluginEventHash
+ * @typedef  {Object} PluginEventHash
  *
  * @property {string} instance
  *           For basic plugins, the return value of the plugin function. For
@@ -25770,10 +25828,10 @@ videojs.getComponent = Component$1.getComponent;
  * @param {string} name
  *        The class name of the component
  *
- * @param {Component} comp
+ * @param {typeof Component} comp
  *        The component class
  *
- * @return {Component}
+ * @return {typeof Component}
  *         The newly registered component
  */
 videojs.registerComponent = (name, comp) => {
@@ -25856,9 +25914,11 @@ videojs.deregisterPlugin = Plugin.deregisterPlugin;
  *
  * @param {string} name
  *        The plugin name
- *
- * @param {Plugin|Function} plugin
+*
+ * @param {typeof Plugin|Function} plugin
  *         The plugin sub-class or function
+ *
+ * @return {typeof Plugin|Function}
  */
 videojs.plugin = (name, plugin) => {
   log$1.warn('videojs.plugin() is deprecated; use videojs.registerPlugin() instead');
@@ -26309,7 +26369,7 @@ videojs.registerPlugin('qualityLevels', qualityLevels); // Include the version n
 
 qualityLevels.VERSION = version$5;
 
-/*! @name @videojs/http-streaming @version 3.3.1 @license Apache-2.0 */
+/*! @name @videojs/http-streaming @version 3.7.0 @license Apache-2.0 */
 
 /**
  * @file resolve-url.js - Handling how URLs are resolved and manipulated
@@ -26365,6 +26425,26 @@ function createTimeRanges(...args) {
   const context = videojs.time || videojs;
   const fn = context.createTimeRanges || context.createTimeRanges;
   return fn.apply(context, args);
+}
+/**
+ * Converts any buffered time range to a descriptive string
+ *
+ * @param {TimeRanges} buffered - time ranges
+ * @return {string} - descriptive string
+ */
+
+function prettyBuffered(buffered) {
+  let result = '';
+  for (let i = 0; i < buffered.length; i++) {
+    const start = buffered.start(i);
+    const end = buffered.end(i);
+    const duration = end - start;
+    if (result.length) {
+      result += '\n';
+    }
+    result += `[${duration}](${start} -> ${end})`;
+  }
+  return result || 'empty';
 }
 
 /**
@@ -27023,9 +27103,13 @@ const playlistEnd = function (playlist, expired, useSafeLiveEnd, liveEdgePadding
 const seekable = function (playlist, expired, liveEdgePadding) {
   const useSafeLiveEnd = true;
   const seekableStart = expired || 0;
-  const seekableEnd = playlistEnd(playlist, expired, useSafeLiveEnd, liveEdgePadding);
+  let seekableEnd = playlistEnd(playlist, expired, useSafeLiveEnd, liveEdgePadding);
   if (seekableEnd === null) {
     return createTimeRanges();
+  } // Clamp seekable end since it can not be less than the seekable start
+
+  if (seekableEnd < seekableStart) {
+    seekableEnd = seekableStart;
   }
   return createTimeRanges(seekableStart, seekableEnd);
 };
@@ -27656,6 +27740,94 @@ const addPropertiesToMain = (main, uri, createGroupID = groupID) => {
   setupMediaPlaylists(main);
   resolveMediaGroupUris(main);
 };
+class DateRangesStorage {
+  constructor() {
+    this.offset_ = null;
+    this.pendingDateRanges_ = new Map();
+    this.processedDateRanges_ = new Map();
+  }
+  setOffset(segments = []) {
+    // already set
+    if (this.offset_ !== null) {
+      return;
+    } // no segment to process
+
+    if (!segments.length) {
+      return;
+    }
+    const [firstSegment] = segments; // no program date time
+
+    if (firstSegment.programDateTime === undefined) {
+      return;
+    } // Set offset as ProgramDateTime for the very first segment of the very first playlist load:
+
+    this.offset_ = firstSegment.programDateTime / 1000;
+  }
+  setPendingDateRanges(dateRanges = []) {
+    if (!dateRanges.length) {
+      return;
+    }
+    const [dateRange] = dateRanges;
+    const startTime = dateRange.startDate.getTime();
+    this.trimProcessedDateRanges_(startTime);
+    this.pendingDateRanges_ = dateRanges.reduce((map, pendingDateRange) => {
+      map.set(pendingDateRange.id, pendingDateRange);
+      return map;
+    }, new Map());
+  }
+  processDateRange(dateRange) {
+    this.pendingDateRanges_.delete(dateRange.id);
+    this.processedDateRanges_.set(dateRange.id, dateRange);
+  }
+  getDateRangesToProcess() {
+    if (this.offset_ === null) {
+      return [];
+    }
+    const dateRangeClasses = {};
+    const dateRangesToProcess = [];
+    this.pendingDateRanges_.forEach((dateRange, id) => {
+      if (this.processedDateRanges_.has(id)) {
+        return;
+      }
+      dateRange.startTime = dateRange.startDate.getTime() / 1000 - this.offset_;
+      dateRange.processDateRange = () => this.processDateRange(dateRange);
+      dateRangesToProcess.push(dateRange);
+      if (!dateRange.class) {
+        return;
+      }
+      if (dateRangeClasses[dateRange.class]) {
+        const length = dateRangeClasses[dateRange.class].push(dateRange);
+        dateRange.classListIndex = length - 1;
+      } else {
+        dateRangeClasses[dateRange.class] = [dateRange];
+        dateRange.classListIndex = 0;
+      }
+    });
+    for (const dateRange of dateRangesToProcess) {
+      const classList = dateRangeClasses[dateRange.class] || [];
+      if (dateRange.endDate) {
+        dateRange.endTime = dateRange.endDate.getTime() / 1000 - this.offset_;
+      } else if (dateRange.endOnNext && classList[dateRange.classListIndex + 1]) {
+        dateRange.endTime = classList[dateRange.classListIndex + 1].startTime;
+      } else if (dateRange.duration) {
+        dateRange.endTime = dateRange.startTime + dateRange.duration;
+      } else if (dateRange.plannedDuration) {
+        dateRange.endTime = dateRange.startTime + dateRange.plannedDuration;
+      } else {
+        dateRange.endTime = dateRange.startTime;
+      }
+    }
+    return dateRangesToProcess;
+  }
+  trimProcessedDateRanges_(startTime) {
+    const copy = new Map(this.processedDateRanges_);
+    copy.forEach((dateRange, id) => {
+      if (dateRange.startDate.getTime() < startTime) {
+        this.processedDateRanges_.delete(id);
+      }
+    });
+  }
+}
 
 /**
  * @file playlist-loader.js
@@ -27986,15 +28158,31 @@ class PlaylistLoader extends EventTarget$1 {
     this.src = src;
     this.vhs_ = vhs;
     this.withCredentials = withCredentials;
+    this.addDateRangesToTextTrack_ = options.addDateRangesToTextTrack;
     const vhsOptions = vhs.options_;
     this.customTagParsers = vhsOptions && vhsOptions.customTagParsers || [];
     this.customTagMappers = vhsOptions && vhsOptions.customTagMappers || [];
-    this.llhls = vhsOptions && vhsOptions.llhls; // initialize the loader state
+    this.llhls = vhsOptions && vhsOptions.llhls;
+    this.dateRangesStorage_ = new DateRangesStorage(); // initialize the loader state
 
     this.state = 'HAVE_NOTHING'; // live playlist staleness timeout
 
     this.handleMediaupdatetimeout_ = this.handleMediaupdatetimeout_.bind(this);
     this.on('mediaupdatetimeout', this.handleMediaupdatetimeout_);
+    this.on('loadedplaylist', this.handleLoadedPlaylist_.bind(this));
+  }
+  handleLoadedPlaylist_() {
+    const mediaPlaylist = this.media();
+    if (!mediaPlaylist) {
+      return;
+    }
+    this.dateRangesStorage_.setOffset(mediaPlaylist.segments);
+    this.dateRangesStorage_.setPendingDateRanges(mediaPlaylist.dateRanges);
+    const availableDateRanges = this.dateRangesStorage_.getDateRangesToProcess();
+    if (!availableDateRanges.length || !this.addDateRangesToTextTrack_) {
+      return;
+    }
+    this.addDateRangesToTextTrack_(availableDateRanges);
   }
   handleMediaupdatetimeout_() {
     if (this.state !== 'HAVE_METADATA') {
@@ -28115,6 +28303,7 @@ class PlaylistLoader extends EventTarget$1 {
     this.stopRequest();
     window__default["default"].clearTimeout(this.mediaUpdateTimeout);
     window__default["default"].clearTimeout(this.finalRenditionTimeout);
+    this.dateRangesStorage_ = new DateRangesStorage();
     this.off();
   }
   stopRequest() {
@@ -28773,13 +28962,13 @@ const findSegmentForProgramTime = (programTime, playlist) => {
     return null;
   }
   let segment = playlist.segments[0];
-  if (dateTimeObject < segment.dateTimeObject) {
+  if (dateTimeObject < new Date(segment.dateTimeObject)) {
     // Requested time is before stream start.
     return null;
   }
   for (let i = 0; i < playlist.segments.length - 1; i++) {
     segment = playlist.segments[i];
-    const nextSegmentStart = playlist.segments[i + 1].dateTimeObject;
+    const nextSegmentStart = new Date(playlist.segments[i + 1].dateTimeObject);
     if (dateTimeObject < nextSegmentStart) {
       break;
     }
@@ -28792,7 +28981,7 @@ const findSegmentForProgramTime = (programTime, playlist) => {
     // Beyond the end of the stream, or our best guess of the end of the stream.
     return null;
   }
-  if (dateTimeObject > lastSegmentStart) {
+  if (dateTimeObject > new Date(lastSegmentStart)) {
     segment = lastSegment;
   }
   return {
@@ -29358,7 +29547,10 @@ class DashPlaylistLoader extends EventTarget {
     }); // live playlist staleness timeout
 
     this.on('mediaupdatetimeout', () => {
-      this.refreshMedia_(this.media().id);
+      // We handle live content steering in the playlist controller
+      if (!this.media().attributes.serviceLocation) {
+        this.refreshMedia_(this.media().id);
+      }
     });
     this.state = 'HAVE_NOTHING';
     this.loadedPlaylists_ = {};
@@ -32188,18 +32380,31 @@ const workerCode$1 = transform(getWorkerString(function () {
     var nextByte = packetData[i + 1];
     var win = service.currentWindow;
     var char;
-    var charCodeArray; // Use the TextDecoder if one was created for this service
+    var charCodeArray; // Converts an array of bytes to a unicode hex string.
+
+    function toHexString(byteArray) {
+      return byteArray.map(byte => {
+        return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+      }).join('');
+    }
+    if (isMultiByte) {
+      charCodeArray = [currentByte, nextByte];
+      i++;
+    } else {
+      charCodeArray = [currentByte];
+    } // Use the TextDecoder if one was created for this service
 
     if (service.textDecoder_ && !isExtended) {
-      if (isMultiByte) {
-        charCodeArray = [currentByte, nextByte];
-        i++;
-      } else {
-        charCodeArray = [currentByte];
-      }
       char = service.textDecoder_.decode(new Uint8Array(charCodeArray));
     } else {
-      char = get708CharFromCode(extended | currentByte);
+      // We assume any multi-byte char without a decoder is unicode.
+      if (isMultiByte) {
+        const unicode = toHexString(charCodeArray); // Takes a unicode hex string and creates a single character.
+
+        char = String.fromCharCode(parseInt(unicode, 16));
+      } else {
+        char = get708CharFromCode(extended | currentByte);
+      }
     }
     if (win.pendingNewLine && !win.isEmpty()) {
       win.newLine(this.getPts(i));
@@ -32809,12 +33014,18 @@ const workerCode$1 = transform(getWorkerString(function () {
 
   var ROWS = [0x1100, 0x1120, 0x1200, 0x1220, 0x1500, 0x1520, 0x1600, 0x1620, 0x1700, 0x1720, 0x1000, 0x1300, 0x1320, 0x1400, 0x1420]; // CEA-608 captions are rendered onto a 34x15 matrix of character
   // cells. The "bottom" row is the last element in the outer array.
+  // We keep track of positioning information as we go by storing the
+  // number of indentations and the tab offset in this buffer.
 
   var createDisplayBuffer = function () {
     var result = [],
       i = BOTTOM_ROW + 1;
     while (i--) {
-      result.push('');
+      result.push({
+        text: '',
+        indent: 0,
+        offset: 0
+      });
     }
     return result;
   };
@@ -32877,9 +33088,9 @@ const workerCode$1 = transform(getWorkerString(function () {
         this.startPts_ = packet.pts;
       } else if (data === this.BACKSPACE_) {
         if (this.mode_ === 'popOn') {
-          this.nonDisplayed_[this.row_] = this.nonDisplayed_[this.row_].slice(0, -1);
+          this.nonDisplayed_[this.row_].text = this.nonDisplayed_[this.row_].text.slice(0, -1);
         } else {
-          this.displayed_[this.row_] = this.displayed_[this.row_].slice(0, -1);
+          this.displayed_[this.row_].text = this.displayed_[this.row_].text.slice(0, -1);
         }
       } else if (data === this.ERASE_DISPLAYED_MEMORY_) {
         this.flushDisplayed(packet.pts);
@@ -32911,9 +33122,9 @@ const workerCode$1 = transform(getWorkerString(function () {
         // backspace the "e" and insert "è".
         // Delete the previous character
         if (this.mode_ === 'popOn') {
-          this.nonDisplayed_[this.row_] = this.nonDisplayed_[this.row_].slice(0, -1);
+          this.nonDisplayed_[this.row_].text = this.nonDisplayed_[this.row_].text.slice(0, -1);
         } else {
-          this.displayed_[this.row_] = this.displayed_[this.row_].slice(0, -1);
+          this.displayed_[this.row_].text = this.displayed_[this.row_].text.slice(0, -1);
         } // Bitmask char0 so that we can apply character transformations
         // regardless of field and data channel.
         // Then byte-shift to the left and OR with char1 so we can pass the
@@ -32941,7 +33152,11 @@ const workerCode$1 = transform(getWorkerString(function () {
         // increments, with an additional offset code of 1-3 to reach any
         // of the 32 columns specified by CEA-608. So all we need to do
         // here is increment the column cursor by the given offset.
-        this.column_ += char1 & 0x03; // Detect PACs (Preamble Address Codes)
+        const offset = char1 & 0x03; // For an offest value 1-3, set the offset for that caption
+        // in the non-displayed array.
+
+        this.nonDisplayed_[this.row_].offset = offset;
+        this.column_ += offset; // Detect PACs (Preamble Address Codes)
       } else if (this.isPAC(char0, char1)) {
         // There's no logic for PAC -> row mapping, so we have to just
         // find the row code in an array and use its index :(
@@ -32971,7 +33186,10 @@ const workerCode$1 = transform(getWorkerString(function () {
           // increments the column cursor by 4, so we can get the desired
           // column position by bit-shifting to the right (to get n/2)
           // and multiplying by 4.
-          this.column_ = ((data & 0xe) >> 1) * 4;
+          const indentations = (data & 0xe) >> 1;
+          this.column_ = indentations * 4; // add to the number of indentations for positioning
+
+          this.nonDisplayed_[this.row_].indent += indentations;
         }
         if (this.isColorPAC(char1)) {
           // it's a color code, though we only support white, which
@@ -32998,28 +33216,47 @@ const workerCode$1 = transform(getWorkerString(function () {
   // display buffer
 
   Cea608Stream.prototype.flushDisplayed = function (pts) {
-    var content = this.displayed_ // remove spaces from the start and end of the string
-    .map(function (row, index) {
-      try {
-        return row.trim();
-      } catch (e) {
-        // Ordinarily, this shouldn't happen. However, caption
-        // parsing errors should not throw exceptions and
-        // break playback.
-        this.trigger('log', {
-          level: 'warn',
-          message: 'Skipping a malformed 608 caption at index ' + index + '.'
-        });
-        return '';
+    const logWarning = index => {
+      this.trigger('log', {
+        level: 'warn',
+        message: 'Skipping a malformed 608 caption at index ' + index + '.'
+      });
+    };
+    const content = [];
+    this.displayed_.forEach((row, i) => {
+      if (row && row.text && row.text.length) {
+        try {
+          // remove spaces from the start and end of the string
+          row.text = row.text.trim();
+        } catch (e) {
+          // Ordinarily, this shouldn't happen. However, caption
+          // parsing errors should not throw exceptions and
+          // break playback.
+          logWarning(i);
+        } // See the below link for more details on the following fields:
+        // https://dvcs.w3.org/hg/text-tracks/raw-file/default/608toVTT/608toVTT.html#positioning-in-cea-608
+
+        if (row.text.length) {
+          content.push({
+            // The text to be displayed in the caption from this specific row, with whitespace removed.
+            text: row.text,
+            // Value between 1 and 15 representing the PAC row used to calculate line height.
+            line: i + 1,
+            // A number representing the indent position by percentage (CEA-608 PAC indent code).
+            // The value will be a number between 10 and 80. Offset is used to add an aditional
+            // value to the position if necessary.
+            position: 10 + Math.min(70, row.indent * 10) + row.offset * 2.5
+          });
+        }
+      } else if (row === undefined || row === null) {
+        logWarning(i);
       }
-    }, this) // combine all text rows to display in one cue
-    .join('\n') // and remove blank rows from the start and end, but not the middle
-    .replace(/^\n+|\n+$/g, '');
+    });
     if (content.length) {
       this.trigger('data', {
         startPts: this.startPts_,
         endPts: pts,
-        text: content,
+        content,
         stream: this.name_
       });
     }
@@ -33216,7 +33453,11 @@ const workerCode$1 = transform(getWorkerString(function () {
       // move currently displayed captions (up or down) to the new base row
       for (var i = 0; i < this.rollUpRows_; i++) {
         this.displayed_[newBaseRow - i] = this.displayed_[this.row_ - i];
-        this.displayed_[this.row_ - i] = '';
+        this.displayed_[this.row_ - i] = {
+          text: '',
+          indent: 0,
+          offset: 0
+        };
       }
     }
     if (newBaseRow === undefined) {
@@ -33247,36 +33488,48 @@ const workerCode$1 = transform(getWorkerString(function () {
   }; // Mode Implementations
 
   Cea608Stream.prototype.popOn = function (pts, text) {
-    var baseRow = this.nonDisplayed_[this.row_]; // buffer characters
+    var baseRow = this.nonDisplayed_[this.row_].text; // buffer characters
 
     baseRow += text;
-    this.nonDisplayed_[this.row_] = baseRow;
+    this.nonDisplayed_[this.row_].text = baseRow;
   };
   Cea608Stream.prototype.rollUp = function (pts, text) {
-    var baseRow = this.displayed_[this.row_];
+    var baseRow = this.displayed_[this.row_].text;
     baseRow += text;
-    this.displayed_[this.row_] = baseRow;
+    this.displayed_[this.row_].text = baseRow;
   };
   Cea608Stream.prototype.shiftRowsUp_ = function () {
     var i; // clear out inactive rows
 
     for (i = 0; i < this.topRow_; i++) {
-      this.displayed_[i] = '';
+      this.displayed_[i] = {
+        text: '',
+        indent: 0,
+        offset: 0
+      };
     }
     for (i = this.row_ + 1; i < BOTTOM_ROW + 1; i++) {
-      this.displayed_[i] = '';
+      this.displayed_[i] = {
+        text: '',
+        indent: 0,
+        offset: 0
+      };
     } // shift displayed rows up
 
     for (i = this.topRow_; i < this.row_; i++) {
       this.displayed_[i] = this.displayed_[i + 1];
     } // clear out the bottom row
 
-    this.displayed_[this.row_] = '';
+    this.displayed_[this.row_] = {
+      text: '',
+      indent: 0,
+      offset: 0
+    };
   };
   Cea608Stream.prototype.paintOn = function (pts, text) {
-    var baseRow = this.displayed_[this.row_];
+    var baseRow = this.displayed_[this.row_].text;
     baseRow += text;
-    this.displayed_[this.row_] = baseRow;
+    this.displayed_[this.row_].text = baseRow;
   }; // exports
 
   var captionStream = {
@@ -35849,7 +36102,7 @@ const workerCode$1 = transform(getWorkerString(function () {
     this.push = function (output) {
       // buffer incoming captions until the associated video segment
       // finishes
-      if (output.text) {
+      if (output.content || output.text) {
         return this.pendingCaptions.push(output);
       } // buffer incoming id3 tags until the final flush
 
@@ -36707,7 +36960,10 @@ const workerCode$1 = transform(getWorkerString(function () {
     * @return {?Object[]} parsedCaptions - A list of captions or null if no video tracks
     * @return {Number} parsedCaptions[].startTime - The time to show the caption in seconds
     * @return {Number} parsedCaptions[].endTime - The time to stop showing the caption in seconds
-    * @return {String} parsedCaptions[].text - The visible content of the caption
+    * @return {Object[]} parsedCaptions[].content - A list of individual caption segments
+    * @return {String} parsedCaptions[].content.text - The visible content of the caption segment
+    * @return {Number} parsedCaptions[].content.line - The line height from 1-15 for positioning of the caption segment
+    * @return {Number} parsedCaptions[].content.position - The column indent percentage for cue positioning from 10-80
    **/
 
   var parseEmbeddedCaptions = function (segment, trackId, timescale) {
@@ -39038,14 +39294,6 @@ const transmuxAndNotify = ({
           isMuxed
         });
         trackInfoFn = null;
-        if (probeResult.hasAudio && !isMuxed) {
-          audioStartFn(probeResult.audioStart);
-        }
-        if (probeResult.hasVideo) {
-          videoStartFn(probeResult.videoStart);
-        }
-        audioStartFn = null;
-        videoStartFn = null;
       }
       finish();
     }
@@ -39153,7 +39401,7 @@ const handleSegmentBytes = ({
             segment.bytes = bytesAsUint8Array = emsgData; // Run through the CaptionParser in case there are captions.
             // Initialize CaptionParser if it hasn't been yet
 
-            if (!tracks.video || !data.byteLength || !segment.transmuxer) {
+            if (!tracks.video || !emsgData.byteLength || !segment.transmuxer) {
               finishLoading(undefined, id3Frames);
               return;
             }
@@ -40301,8 +40549,22 @@ const addCaptionData = function ({
   }
   const Cue = window__default["default"].WebKitDataCue || window__default["default"].VTTCue;
   captionArray.forEach(caption => {
-    const track = caption.stream;
-    inbandTextTracks[track].addCue(new Cue(caption.startTime + timestampOffset, caption.endTime + timestampOffset, caption.text));
+    const track = caption.stream; // in CEA 608 captions, video.js/mux.js sends a content array
+    // with positioning data
+
+    if (caption.content) {
+      caption.content.forEach(value => {
+        const cue = new Cue(caption.startTime + timestampOffset, caption.endTime + timestampOffset, value.text);
+        cue.line = value.line;
+        cue.align = 'left';
+        cue.position = value.position;
+        cue.positionAlign = 'line-left';
+        inbandTextTracks[track].addCue(cue);
+      });
+    } else {
+      // otherwise, a text value with combined captions is sent
+      inbandTextTracks[track].addCue(new Cue(caption.startTime + timestampOffset, caption.endTime + timestampOffset, caption.text));
+    }
   });
 };
 /**
@@ -40409,11 +40671,64 @@ const addMetadata = ({
 
   sortedStartTimes.forEach((startTime, idx) => {
     const cueGroup = cuesGroupedByStartTime[startTime];
-    const nextTime = Number(sortedStartTimes[idx + 1]) || videoDuration; // Map each cue's endTime the next group's startTime
+    const finiteDuration = isFinite(videoDuration) ? videoDuration : 0;
+    const nextTime = Number(sortedStartTimes[idx + 1]) || finiteDuration; // Map each cue's endTime the next group's startTime
 
     cueGroup.forEach(cue => {
       cue.endTime = nextTime;
     });
+  });
+}; // object for mapping daterange attributes
+
+const dateRangeAttr = {
+  id: 'ID',
+  class: 'CLASS',
+  startDate: 'START-DATE',
+  duration: 'DURATION',
+  endDate: 'END-DATE',
+  endOnNext: 'END-ON-NEXT',
+  plannedDuration: 'PLANNED-DURATION',
+  scte35Out: 'SCTE35-OUT',
+  scte35In: 'SCTE35-IN'
+};
+const dateRangeKeysToOmit = new Set(['id', 'class', 'startDate', 'duration', 'endDate', 'endOnNext', 'startTime', 'endTime', 'processDateRange']);
+/**
+ * Add DateRange metadata text track to a source handler given an array of metadata
+ *
+ * @param {Object}
+ *   @param {Object} inbandTextTracks the inband text tracks
+ *   @param {Array} dateRanges parsed media playlist
+ * @private
+ */
+
+const addDateRangeMetadata = ({
+  inbandTextTracks,
+  dateRanges
+}) => {
+  const metadataTrack = inbandTextTracks.metadataTrack_;
+  if (!metadataTrack) {
+    return;
+  }
+  const Cue = window__default["default"].WebKitDataCue || window__default["default"].VTTCue;
+  dateRanges.forEach(dateRange => {
+    // we generate multiple cues for each date range with different attributes
+    for (const key of Object.keys(dateRange)) {
+      if (dateRangeKeysToOmit.has(key)) {
+        continue;
+      }
+      const cue = new Cue(dateRange.startTime, dateRange.endTime, '');
+      cue.id = dateRange.id;
+      cue.type = 'com.apple.quicktime.HLS';
+      cue.value = {
+        key: dateRangeAttr[key],
+        data: dateRange[key]
+      };
+      if (key === 'scte35Out' || key === 'scte35In') {
+        cue.value.data = new Uint8Array(cue.value.data.match(/[\da-f]{2}/gi)).buffer;
+      }
+      metadataTrack.addCue(cue);
+    }
+    dateRange.processDateRange();
   });
 };
 /**
@@ -40433,7 +40748,9 @@ const createMetadataTrackIfNotExists = (inbandTextTracks, dispatchType, tech) =>
     kind: 'metadata',
     label: 'Timed Metadata'
   }, false).track;
-  inbandTextTracks.metadataTrack_.inBandMetadataTrackDispatchType = dispatchType;
+  if (!videojs.browser.IS_ANY_SAFARI) {
+    inbandTextTracks.metadataTrack_.inBandMetadataTrackDispatchType = dispatchType;
+  }
 };
 /**
  * Remove cues from a track on video.js.
@@ -40747,6 +41064,7 @@ const segmentInfoString = segmentInfo => {
   return `${name} [${seq + index}/${seq + segmentLen}]` + (hasPartIndex ? ` part [${partIndex}/${zeroBasedPartCount}]` : '') + ` segment start/end [${segment.start} => ${segment.end}]` + (hasPartIndex ? ` part start/end [${part.start} => ${part.end}]` : '') + ` startOfSegment [${startOfSegment}]` + ` duration [${duration}]` + ` timeline [${timeline}]` + ` selected by [${selection}]` + ` playlist [${id}]`;
 };
 const timingInfoPropertyForMedia = mediaType => `${mediaType}TimingInfo`;
+const getBufferedEndOrFallback = (buffered, fallback) => buffered.length ? buffered.end(buffered.length - 1) : fallback;
 /**
  * Returns the timestamp offset to use for the segment.
  *
@@ -40758,6 +41076,8 @@ const timingInfoPropertyForMedia = mediaType => `${mediaType}TimingInfo`;
  *        The estimated segment start
  * @param {TimeRange[]} buffered
  *        The loader's buffer
+ * @param {boolean} calculateTimestampOffsetForEachSegment
+ *        Feature flag to always calculate timestampOffset
  * @param {boolean} overrideCheck
  *        If true, no checks are made to see if the timestamp offset value should be set,
  *        but sets it directly to a value.
@@ -40772,14 +41092,18 @@ const timestampOffsetForSegment = ({
   currentTimeline,
   startOfSegment,
   buffered,
+  calculateTimestampOffsetForEachSegment,
   overrideCheck
 }) => {
-  // Check to see if we are crossing a discontinuity to see if we need to set the
+  if (calculateTimestampOffsetForEachSegment) {
+    return getBufferedEndOrFallback(buffered, startOfSegment);
+  } // Check to see if we are crossing a discontinuity to see if we need to set the
   // timestamp offset on the transmuxer and source buffer.
   //
   // Previously, we changed the timestampOffset if the start of this segment was less than
   // the currently set timestampOffset, but this isn't desirable as it can produce bad
   // behavior, especially around long running live streams.
+
   if (!overrideCheck && segmentTimeline === currentTimeline) {
     return null;
   } // When changing renditions, it's possible to request a segment on an older timeline. For
@@ -40815,7 +41139,7 @@ const timestampOffsetForSegment = ({
   // content post discontinuity should line up with the buffered end as if it were
   // time 0 for the new content.
 
-  return buffered.length ? buffered.end(buffered.length - 1) : startOfSegment;
+  return getBufferedEndOrFallback(buffered, startOfSegment);
 };
 /**
  * Returns whether or not the loader should wait for a timeline change from the timeline
@@ -41103,6 +41427,7 @@ class SegmentLoader extends videojs.EventTarget {
     this.shouldSaveSegmentTimingInfo_ = true;
     this.parse708captions_ = settings.parse708captions;
     this.useDtsForTimestampOffset_ = settings.useDtsForTimestampOffset;
+    this.calculateTimestampOffsetForEachSegment_ = settings.calculateTimestampOffsetForEachSegment;
     this.captionServices_ = settings.captionServices;
     this.exactManifestTimings = settings.exactManifestTimings;
     this.addMetadataToTextTrack = settings.addMetadataToTextTrack; // private instance variables
@@ -41164,7 +41489,9 @@ class SegmentLoader extends videojs.EventTarget {
       }
     }); // ...for determining the fetch location
 
-    this.fetchAtBuffer_ = false;
+    this.fetchAtBuffer_ = false; // For comparing with currentTime when overwriting segments on fastQualityChange_ changes. Use -1 as the inactive flag.
+
+    this.replaceSegmentsUntil_ = -1;
     this.logger_ = logger(`SegmentLoader[${this.loaderType_}]`);
     Object.defineProperty(this, 'state', {
       get() {
@@ -41542,13 +41869,14 @@ class SegmentLoader extends videojs.EventTarget {
       if (this.mediaIndex !== null) {
         // we must reset/resync the segment loader when we switch renditions and
         // the segment loader is already synced to the previous rendition
-        // on playlist changes we want it to be possible to fetch
-        // at the buffer for vod but not for live. So we use resetLoader
-        // for live and resyncLoader for vod. We want this because
-        // if a playlist uses independent and non-independent segments/parts the
-        // buffer may not accurately reflect the next segment that we should try
-        // downloading.
-        if (!newPlaylist.endList) {
+        // We only want to reset the loader here for LLHLS playback, as resetLoader sets fetchAtBuffer_
+        // to false, resulting in fetching segments at currentTime and causing repeated
+        // same-segment requests on playlist change. This erroneously drives up the playback watcher
+        // stalled segment count, as re-requesting segments at the currentTime or browser cached segments
+        // will not change the buffer.
+        // Reference for LLHLS fixes: https://github.com/videojs/http-streaming/pull/1201
+        const isLLHLS = !newPlaylist.endList && typeof newPlaylist.partTargetDuration === 'number';
+        if (isLLHLS) {
           this.resetLoader();
         } else {
           this.resyncLoader();
@@ -41635,6 +41963,18 @@ class SegmentLoader extends videojs.EventTarget {
     return this.checkBufferTimeout_ === null;
   }
   /**
+   * Resets the segment loader ended and init properties.
+   */
+
+  resetLoaderProperties() {
+    this.ended_ = false;
+    this.activeInitSegmentId_ = null;
+    this.appendInitSegment_ = {
+      audio: true,
+      video: true
+    };
+  }
+  /**
    * Delete all the buffered data and reset the SegmentLoader
    *
    * @param {Function} [done] an optional callback to be executed when the remove
@@ -41642,12 +41982,7 @@ class SegmentLoader extends videojs.EventTarget {
    */
 
   resetEverything(done) {
-    this.ended_ = false;
-    this.activeInitSegmentId_ = null;
-    this.appendInitSegment_ = {
-      audio: true,
-      video: true
-    };
+    this.resetLoaderProperties();
     this.resetLoader(); // remove from 0, the earliest point, to Infinity, to signify removal of everything.
     // VTT Segment Loader doesn't need to do anything but in the regular SegmentLoader,
     // we then clamp the value to duration if necessary.
@@ -41916,12 +42251,16 @@ class SegmentLoader extends videojs.EventTarget {
     if (typeof next.partIndex !== 'number' && nextSegment.parts) {
       next.partIndex = 0;
       nextPart = nextSegment.parts[0];
-    } // if we have no buffered data then we need to make sure
+    } // independentSegments applies to every segment in a playlist. If independentSegments appears in a main playlist,
+    // it applies to each segment in each media playlist.
+    // https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-23#section-4.3.5.1
+
+    const hasIndependentSegments = this.vhs_.playlists && this.vhs_.playlists.main && this.vhs_.playlists.main.independentSegments || this.playlist_.independentSegments; // if we have no buffered data then we need to make sure
     // that the next part we append is "independent" if possible.
     // So we check if the previous part is independent, and request
     // it if it is.
 
-    if (!bufferedTime && nextPart && !nextPart.independent) {
+    if (!bufferedTime && nextPart && !hasIndependentSegments && !nextPart.independent) {
       if (next.partIndex === 0) {
         const lastSegment = segments[next.mediaIndex - 1];
         const lastSegmentLastPart = lastSegment.parts && lastSegment.parts.length && lastSegment.parts[lastSegment.parts.length - 1];
@@ -41997,6 +42336,7 @@ class SegmentLoader extends videojs.EventTarget {
       currentTimeline: this.currentTimeline_,
       startOfSegment,
       buffered: this.buffered_(),
+      calculateTimestampOffsetForEachSegment: this.calculateTimestampOffsetForEachSegment_,
       overrideCheck
     });
     const audioBufferedEnd = lastBufferedEnd(this.sourceUpdater_.audioBuffered());
@@ -43243,7 +43583,10 @@ class SegmentLoader extends videojs.EventTarget {
     }
     this.logger_(`Appended ${segmentInfoString(segmentInfo)}`);
     this.addSegmentMetadataCue_(segmentInfo);
-    this.fetchAtBuffer_ = true;
+    if (this.currentTime_() >= this.replaceSegmentsUntil_) {
+      this.replaceSegmentsUntil_ = -1;
+      this.fetchAtBuffer_ = true;
+    }
     if (this.currentTimeline_ !== segmentInfo.timeline) {
       this.timelineChangeController_.lastTimelineChange({
         type: this.loaderType_,
@@ -43356,6 +43699,7 @@ class SegmentLoader extends videojs.EventTarget {
       custom: segment.custom,
       dateTimeObject: segment.dateTimeObject,
       dateTimeString: segment.dateTimeString,
+      programDateTime: segment.programDateTime,
       bandwidth: segmentInfo.playlist.attributes.BANDWIDTH,
       resolution: segmentInfo.playlist.attributes.RESOLUTION,
       codecs: segmentInfo.playlist.attributes.CODECS,
@@ -43372,6 +43716,18 @@ class SegmentLoader extends videojs.EventTarget {
 
     cue.value = value;
     this.segmentMetadataTrack_.addCue(cue);
+  }
+  /**
+   * Public setter for defining the private replaceSegmentsUntil_ property, which
+   * determines when we can return fetchAtBuffer to true if overwriting the buffer.
+   *
+   * @param {number} bufferedEnd the end of the buffered range to replace segments
+   * until currentTime reaches this time.
+   */
+
+  set replaceSegmentsUntil(bufferedEnd) {
+    this.logger_(`Replacing currently buffered segments until ${bufferedEnd}`);
+    this.replaceSegmentsUntil_ = bufferedEnd;
   }
 }
 function noop() {}
@@ -43618,12 +43974,15 @@ const pushQueue = ({
   shiftQueue(type, sourceUpdater);
 };
 const onUpdateend = (type, sourceUpdater) => e => {
-  // Although there should, in theory, be a pending action for any updateend receieved,
+  const buffered = sourceUpdater[`${type}Buffered`]();
+  const bufferedAsString = prettyBuffered(buffered);
+  sourceUpdater.logger_(`${type} source buffer update end. Buffered: \n`, bufferedAsString); // Although there should, in theory, be a pending action for any updateend receieved,
   // there are some actions that may trigger updateend events without set definitions in
   // the w3c spec. For instance, setting the duration on the media source may trigger
   // updateend events on source buffers. This does not appear to be in the spec. As such,
   // if we encounter an updateend without a corresponding pending action from our queue
   // for that source buffer type, process the next action.
+
   if (sourceUpdater.queuePending[type]) {
     const doneFn = sourceUpdater.queuePending[type].doneFn;
     sourceUpdater.queuePending[type] = null;
@@ -46033,15 +46392,11 @@ const onError = {
    */
   AUDIO: (type, settings) => () => {
     const {
-      segmentLoaders: {
-        [type]: segmentLoader
-      },
       mediaTypes: {
         [type]: mediaType
       },
       excludePlaylist
-    } = settings;
-    stopLoaders(segmentLoader, mediaType); // switch back to default audio track
+    } = settings; // switch back to default audio track
 
     const activeTrack = mediaType.activeTrack();
     const activeGroup = mediaType.activeGroup();
@@ -46077,15 +46432,11 @@ const onError = {
    */
   SUBTITLES: (type, settings) => () => {
     const {
-      segmentLoaders: {
-        [type]: segmentLoader
-      },
       mediaTypes: {
         [type]: mediaType
       }
     } = settings;
     videojs.log.warn('Problem encountered loading the subtitle track.' + 'Disabling subtitle track.');
-    stopLoaders(segmentLoader, mediaType);
     const track = mediaType.activeTrack();
     if (track) {
       track.mode = 'disabled';
@@ -46673,9 +47024,391 @@ const createMediaTypes = () => {
 };
 
 /**
+ * A utility class for setting properties and maintaining the state of the content steering manifest.
+ *
+ * Content Steering manifest format:
+ * VERSION: number (required) currently only version 1 is supported.
+ * TTL: number in seconds (optional) until the next content steering manifest reload.
+ * RELOAD-URI: string (optional) uri to fetch the next content steering manifest.
+ * SERVICE-LOCATION-PRIORITY or PATHWAY-PRIORITY a non empty array of unique string values.
+ */
+
+class SteeringManifest {
+  constructor() {
+    this.priority_ = [];
+  }
+  set version(number) {
+    // Only version 1 is currently supported for both DASH and HLS.
+    if (number === 1) {
+      this.version_ = number;
+    }
+  }
+  set ttl(seconds) {
+    // TTL = time-to-live, default = 300 seconds.
+    this.ttl_ = seconds || 300;
+  }
+  set reloadUri(uri) {
+    if (uri) {
+      // reload URI can be relative to the previous reloadUri.
+      this.reloadUri_ = resolveUrl(this.reloadUri_, uri);
+    }
+  }
+  set priority(array) {
+    // priority must be non-empty and unique values.
+    if (array && array.length) {
+      this.priority_ = array;
+    }
+  }
+  get version() {
+    return this.version_;
+  }
+  get ttl() {
+    return this.ttl_;
+  }
+  get reloadUri() {
+    return this.reloadUri_;
+  }
+  get priority() {
+    return this.priority_;
+  }
+}
+/**
+ * This class represents a content steering manifest and associated state. See both HLS and DASH specifications.
+ * HLS: https://developer.apple.com/streaming/HLSContentSteeringSpecification.pdf and
+ * https://datatracker.ietf.org/doc/draft-pantos-hls-rfc8216bis/ section 4.4.6.6.
+ * DASH: https://dashif.org/docs/DASH-IF-CTS-00XX-Content-Steering-Community-Review.pdf
+ *
+ * @param {function} xhr for making a network request from the browser.
+ * @param {function} bandwidth for fetching the current bandwidth from the main segment loader.
+ */
+
+class ContentSteeringController extends videojs.EventTarget {
+  constructor(xhr, bandwidth) {
+    super();
+    this.currentPathway = null;
+    this.defaultPathway = null;
+    this.queryBeforeStart = null;
+    this.availablePathways_ = new Set();
+    this.excludedPathways_ = new Set();
+    this.steeringManifest = new SteeringManifest();
+    this.proxyServerUrl_ = null;
+    this.manifestType_ = null;
+    this.ttlTimeout_ = null;
+    this.request_ = null;
+    this.excludedSteeringManifestURLs = new Set();
+    this.logger_ = logger('Content Steering');
+    this.xhr_ = xhr;
+    this.getBandwidth_ = bandwidth;
+  }
+  /**
+   * Assigns the content steering tag properties to the steering controller
+   *
+   * @param {string} baseUrl the baseURL from the manifest for resolving the steering manifest url
+   * @param {Object} steeringTag the content steering tag from the main manifest
+   */
+
+  assignTagProperties(baseUrl, steeringTag) {
+    this.manifestType_ = steeringTag.serverUri ? 'HLS' : 'DASH'; // serverUri is HLS serverURL is DASH
+
+    const steeringUri = steeringTag.serverUri || steeringTag.serverURL;
+    if (!steeringUri) {
+      this.logger_(`steering manifest URL is ${steeringUri}, cannot request steering manifest.`);
+      this.trigger('error');
+      return;
+    } // Content steering manifests can be encoded as a data URI. We can decode, parse and return early if that's the case.
+
+    if (steeringUri.startsWith('data:')) {
+      this.decodeDataUriManifest_(steeringUri.substring(steeringUri.indexOf(',') + 1));
+      return;
+    } // With DASH queryBeforeStart, we want to use the steeringUri as soon as possible for the request.
+
+    this.steeringManifest.reloadUri = this.queryBeforeStart ? steeringUri : resolveUrl(baseUrl, steeringUri); // pathwayId is HLS defaultServiceLocation is DASH
+
+    this.defaultPathway = steeringTag.pathwayId || steeringTag.defaultServiceLocation; // currently only DASH supports the following properties on <ContentSteering> tags.
+
+    this.queryBeforeStart = steeringTag.queryBeforeStart || false;
+    this.proxyServerUrl_ = steeringTag.proxyServerURL || null; // trigger a steering event if we have a pathway from the content steering tag.
+    // this tells VHS which segment pathway to start with.
+    // If queryBeforeStart is true we need to wait for the steering manifest response.
+
+    if (this.defaultPathway && !this.queryBeforeStart) {
+      this.trigger('content-steering');
+    }
+    if (this.queryBeforeStart) {
+      this.requestSteeringManifest(this.steeringManifest.reloadUri);
+    }
+  }
+  /**
+   * Requests the content steering manifest and parse the response. This should only be called after
+   * assignTagProperties was called with a content steering tag.
+   *
+   * @param {string} initialUri The optional uri to make the request with.
+   *    If set, the request should be made with exactly what is passed in this variable.
+   *    This scenario is specific to DASH when the queryBeforeStart parameter is true.
+   *    This scenario should only happen once on initalization.
+   */
+
+  requestSteeringManifest(initialUri) {
+    const reloadUri = this.steeringManifest.reloadUri;
+    if (!initialUri && !reloadUri) {
+      return;
+    } // We currently don't support passing MPD query parameters directly to the content steering URL as this requires
+    // ExtUrlQueryInfo tag support. See the DASH content steering spec section 8.1.
+    // This request URI accounts for manifest URIs that have been excluded.
+
+    const uri = initialUri || this.getRequestURI(reloadUri); // If there are no valid manifest URIs, we should stop content steering.
+
+    if (!uri) {
+      this.logger_('No valid content steering manifest URIs. Stopping content steering.');
+      this.trigger('error');
+      this.dispose();
+      return;
+    }
+    this.request_ = this.xhr_({
+      uri
+    }, (error, errorInfo) => {
+      if (error) {
+        // If the client receives HTTP 410 Gone in response to a manifest request,
+        // it MUST NOT issue another request for that URI for the remainder of the
+        // playback session. It MAY continue to use the most-recently obtained set
+        // of Pathways.
+        if (errorInfo.status === 410) {
+          this.logger_(`manifest request 410 ${error}.`);
+          this.logger_(`There will be no more content steering requests to ${uri} this session.`);
+          this.excludedSteeringManifestURLs.add(uri);
+          return;
+        } // If the client receives HTTP 429 Too Many Requests with a Retry-After
+        // header in response to a manifest request, it SHOULD wait until the time
+        // specified by the Retry-After header to reissue the request.
+
+        if (errorInfo.status === 429) {
+          const retrySeconds = errorInfo.responseHeaders['retry-after'];
+          this.logger_(`manifest request 429 ${error}.`);
+          this.logger_(`content steering will retry in ${retrySeconds} seconds.`);
+          this.startTTLTimeout_(parseInt(retrySeconds, 10));
+          return;
+        } // If the Steering Manifest cannot be loaded and parsed correctly, the
+        // client SHOULD continue to use the previous values and attempt to reload
+        // it after waiting for the previously-specified TTL (or 5 minutes if
+        // none).
+
+        this.logger_(`manifest failed to load ${error}.`);
+        this.startTTLTimeout_();
+        return;
+      }
+      const steeringManifestJson = JSON.parse(this.request_.responseText);
+      this.startTTLTimeout_();
+      this.assignSteeringProperties_(steeringManifestJson);
+    });
+  }
+  /**
+   * Set the proxy server URL and add the steering manifest url as a URI encoded parameter.
+   *
+   * @param {string} steeringUrl the steering manifest url
+   * @return the steering manifest url to a proxy server with all parameters set
+   */
+
+  setProxyServerUrl_(steeringUrl) {
+    const steeringUrlObject = new window__default["default"].URL(steeringUrl);
+    const proxyServerUrlObject = new window__default["default"].URL(this.proxyServerUrl_);
+    proxyServerUrlObject.searchParams.set('url', encodeURI(steeringUrlObject.toString()));
+    return this.setSteeringParams_(proxyServerUrlObject.toString());
+  }
+  /**
+   * Decodes and parses the data uri encoded steering manifest
+   *
+   * @param {string} dataUri the data uri to be decoded and parsed.
+   */
+
+  decodeDataUriManifest_(dataUri) {
+    const steeringManifestJson = JSON.parse(window__default["default"].atob(dataUri));
+    this.assignSteeringProperties_(steeringManifestJson);
+  }
+  /**
+   * Set the HLS or DASH content steering manifest request query parameters. For example:
+   * _HLS_pathway="<CURRENT-PATHWAY-ID>" and _HLS_throughput=<THROUGHPUT>
+   * _DASH_pathway and _DASH_throughput
+   *
+   * @param {string} uri to add content steering server parameters to.
+   * @return a new uri as a string with the added steering query parameters.
+   */
+
+  setSteeringParams_(url) {
+    const urlObject = new window__default["default"].URL(url);
+    const path = this.getPathway();
+    const networkThroughput = this.getBandwidth_();
+    if (path) {
+      const pathwayKey = `_${this.manifestType_}_pathway`;
+      urlObject.searchParams.set(pathwayKey, path);
+    }
+    if (networkThroughput) {
+      const throughputKey = `_${this.manifestType_}_throughput`;
+      urlObject.searchParams.set(throughputKey, networkThroughput);
+    }
+    return urlObject.toString();
+  }
+  /**
+   * Assigns the current steering manifest properties and to the SteeringManifest object
+   *
+   * @param {Object} steeringJson the raw JSON steering manifest
+   */
+
+  assignSteeringProperties_(steeringJson) {
+    this.steeringManifest.version = steeringJson.VERSION;
+    if (!this.steeringManifest.version) {
+      this.logger_(`manifest version is ${steeringJson.VERSION}, which is not supported.`);
+      this.trigger('error');
+      return;
+    }
+    this.steeringManifest.ttl = steeringJson.TTL;
+    this.steeringManifest.reloadUri = steeringJson['RELOAD-URI']; // HLS = PATHWAY-PRIORITY required. DASH = SERVICE-LOCATION-PRIORITY optional
+
+    this.steeringManifest.priority = steeringJson['PATHWAY-PRIORITY'] || steeringJson['SERVICE-LOCATION-PRIORITY']; // TODO: HLS handle PATHWAY-CLONES. See section 7.2 https://datatracker.ietf.org/doc/draft-pantos-hls-rfc8216bis/
+    // 1. apply first pathway from the array.
+    // 2. if first pathway doesn't exist in manifest, try next pathway.
+    //    a. if all pathways are exhausted, ignore the steering manifest priority.
+    // 3. if segments fail from an established pathway, try all variants/renditions, then exclude the failed pathway.
+    //    a. exclude a pathway for a minimum of the last TTL duration. Meaning, from the next steering response,
+    //       the excluded pathway will be ignored.
+    //       See excludePathway usage in excludePlaylist().
+    // If there are no available pathways, we need to stop content steering.
+
+    if (!this.availablePathways_.size) {
+      this.logger_('There are no available pathways for content steering. Ending content steering.');
+      this.trigger('error');
+      this.dispose();
+    }
+    const chooseNextPathway = pathwaysByPriority => {
+      for (const path of pathwaysByPriority) {
+        if (this.availablePathways_.has(path)) {
+          return path;
+        }
+      } // If no pathway matches, ignore the manifest and choose the first available.
+
+      return [...this.availablePathways_][0];
+    };
+    const nextPathway = chooseNextPathway(this.steeringManifest.priority);
+    if (this.currentPathway !== nextPathway) {
+      this.currentPathway = nextPathway;
+      this.trigger('content-steering');
+    }
+  }
+  /**
+   * Returns the pathway to use for steering decisions
+   *
+   * @return {string} returns the current pathway or the default
+   */
+
+  getPathway() {
+    return this.currentPathway || this.defaultPathway;
+  }
+  /**
+   * Chooses the manifest request URI based on proxy URIs and server URLs.
+   * Also accounts for exclusion on certain manifest URIs.
+   *
+   * @param {string} reloadUri the base uri before parameters
+   *
+   * @return {string} the final URI for the request to the manifest server.
+   */
+
+  getRequestURI(reloadUri) {
+    if (!reloadUri) {
+      return null;
+    }
+    const isExcluded = uri => this.excludedSteeringManifestURLs.has(uri);
+    if (this.proxyServerUrl_) {
+      const proxyURI = this.setProxyServerUrl_(reloadUri);
+      if (!isExcluded(proxyURI)) {
+        return proxyURI;
+      }
+    }
+    const steeringURI = this.setSteeringParams_(reloadUri);
+    if (!isExcluded(steeringURI)) {
+      return steeringURI;
+    } // Return nothing if all valid manifest URIs are excluded.
+
+    return null;
+  }
+  /**
+   * Start the timeout for re-requesting the steering manifest at the TTL interval.
+   *
+   * @param {number} ttl time in seconds of the timeout. Defaults to the
+   *        ttl interval in the steering manifest
+   */
+
+  startTTLTimeout_(ttl = this.steeringManifest.ttl) {
+    // 300 (5 minutes) is the default value.
+    const ttlMS = ttl * 1000;
+    this.ttlTimeout_ = window__default["default"].setTimeout(() => {
+      this.requestSteeringManifest();
+    }, ttlMS);
+  }
+  /**
+   * Clear the TTL timeout if necessary.
+   */
+
+  clearTTLTimeout_() {
+    window__default["default"].clearTimeout(this.ttlTimeout_);
+    this.ttlTimeout_ = null;
+  }
+  /**
+   * aborts any current steering xhr and sets the current request object to null
+   */
+
+  abort() {
+    if (this.request_) {
+      this.request_.abort();
+    }
+    this.request_ = null;
+  }
+  /**
+   * aborts steering requests clears the ttl timeout and resets all properties.
+   */
+
+  dispose() {
+    this.off('content-steering');
+    this.off('error');
+    this.abort();
+    this.clearTTLTimeout_();
+    this.currentPathway = null;
+    this.defaultPathway = null;
+    this.queryBeforeStart = null;
+    this.proxyServerUrl_ = null;
+    this.manifestType_ = null;
+    this.ttlTimeout_ = null;
+    this.request_ = null;
+    this.excludedSteeringManifestURLs = new Set();
+    this.availablePathways_ = new Set();
+    this.excludedPathways_ = new Set();
+    this.steeringManifest = new SteeringManifest();
+  }
+  /**
+   * adds a pathway to the available pathways set
+   *
+   * @param {string} pathway the pathway string to add
+   */
+
+  addAvailablePathway(pathway) {
+    if (pathway) {
+      this.availablePathways_.add(pathway);
+    }
+  }
+  /**
+   * clears all pathways from the available pathways set
+   */
+
+  clearAvailablePathways() {
+    this.availablePathways_.clear();
+  }
+  excludePathway(pathway) {
+    return this.availablePathways_.delete(pathway);
+  }
+}
+
+/**
  * @file playlist-controller.js
  */
-const ABORT_EARLY_EXCLUSION_SECONDS = 60 * 2;
+const ABORT_EARLY_EXCLUSION_SECONDS = 10;
 let Vhs$1; // SegmentLoader stats that need to have each loader's
 // values summed to calculate the final value
 
@@ -46841,6 +47574,7 @@ class PlaylistController extends videojs.EventTarget {
       vhs: this.vhs_,
       parse708captions: options.parse708captions,
       useDtsForTimestampOffset: options.useDtsForTimestampOffset,
+      calculateTimestampOffsetForEachSegment: options.calculateTimestampOffsetForEachSegment,
       captionServices,
       mediaSource: this.mediaSource,
       currentTime: this.tech_.currentTime.bind(this.tech_),
@@ -46866,7 +47600,9 @@ class PlaylistController extends videojs.EventTarget {
 
     this.mainPlaylistLoader_ = this.sourceType_ === 'dash' ? new DashPlaylistLoader(src, this.vhs_, merge(this.requestOptions_, {
       addMetadataToTextTrack: this.addMetadataToTextTrack.bind(this)
-    })) : new PlaylistLoader(src, this.vhs_, this.requestOptions_);
+    })) : new PlaylistLoader(src, this.vhs_, merge(this.requestOptions_, {
+      addDateRangesToTextTrack: this.addDateRangesToTextTrack_.bind(this)
+    }));
     this.setupMainPlaylistLoaderListeners_(); // setup segment loaders
     // combined audio/video or just video when alternate audio track is selected
 
@@ -46896,6 +47632,10 @@ class PlaylistController extends videojs.EventTarget {
         tech.addWebVttScript_();
       })
     }), options);
+    const getBandwidth = () => {
+      return this.mainSegmentLoader_.bandwidth;
+    };
+    this.contentSteeringController_ = new ContentSteeringController(this.vhs_.xhr, getBandwidth);
     this.setupSegmentLoaderListeners_();
     if (this.bufferBasedABR) {
       this.mainPlaylistLoader_.one('loadedplaylist', () => this.startABRTimer_());
@@ -46980,6 +47720,32 @@ class PlaylistController extends videojs.EventTarget {
       });
     }
     this.mainPlaylistLoader_.media(playlist, delay);
+  }
+  /**
+   * A function that ensures we switch our playlists inside of `mediaTypes`
+   * to match the current `serviceLocation` provided by the contentSteering controller.
+   * We want to check media types of `AUDIO`, `SUBTITLES`, and `CLOSED-CAPTIONS`.
+   *
+   * This should only be called on a DASH playback scenario while using content steering.
+   * This is necessary due to differences in how media in HLS manifests are generally tied to
+   * a video playlist, where in DASH that is not always the case.
+   */
+
+  switchMediaForDASHContentSteering_() {
+    ['AUDIO', 'SUBTITLES', 'CLOSED-CAPTIONS'].forEach(type => {
+      const mediaType = this.mediaTypes_[type];
+      const activeGroup = mediaType ? mediaType.activeGroup() : null;
+      const pathway = this.contentSteeringController_.getPathway();
+      if (activeGroup && pathway) {
+        // activeGroup can be an array or a single group
+        const mediaPlaylists = activeGroup.length ? activeGroup[0].playlists : activeGroup.playlists;
+        const dashMediaPlaylists = mediaPlaylists.filter(p => p.attributes.serviceLocation === pathway); // Switch the current active playlist to the correct CDN
+
+        if (dashMediaPlaylists.length) {
+          this.mediaTypes_[type].activePlaylistLoader.media(dashMediaPlaylists[0]);
+        }
+      }
+    });
   }
   /**
    * Start a timer that periodically calls checkABR_
@@ -47129,8 +47895,9 @@ class PlaylistController extends videojs.EventTarget {
       }
       let updatedPlaylist = this.mainPlaylistLoader_.media();
       if (!updatedPlaylist) {
-        // exclude any variants that are not supported by the browser before selecting
+        this.initContentSteeringController_(); // exclude any variants that are not supported by the browser before selecting
         // an initial media as the playlist selectors do not consider browser support
+
         this.excludeUnsupportedVariants_();
         let selectedMedia;
         if (this.enableLowInitialPlaylist) {
@@ -47453,9 +48220,9 @@ class PlaylistController extends videojs.EventTarget {
   }
   /**
    * Re-tune playback quality level for the current player
-   * conditions. This method will perform destructive actions like removing
-   * already buffered content in order to readjust the currently active
-   * playlist quickly. This is good for manual quality changes
+   * conditions. This will reset the main segment loader
+   * and the next segment position to the currentTime.
+   * This is good for manual quality changes.
    *
    * @private
    */
@@ -47465,16 +48232,27 @@ class PlaylistController extends videojs.EventTarget {
       this.logger_('skipping fastQualityChange because new media is same as old');
       return;
     }
-    this.switchMedia_(media, 'fast-quality'); // Delete all buffered data to allow an immediate quality switch, then seek to give
-    // the browser a kick to remove any cached frames from the previous rendtion (.04 seconds
-    // ahead was roughly the minimum that will accomplish this across a variety of content
-    // in IE and Edge, but seeking in place is sufficient on all other browsers)
-    // Edge/IE bug: https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/14600375/
-    // Chrome bug: https://bugs.chromium.org/p/chromium/issues/detail?id=651904
+    this.switchMedia_(media, 'fast-quality'); // Reset main segment loader properties and next segment position information.
+    // Don't need to reset audio as it is reset when media changes.
+    // We resetLoaderProperties separately here as we want to fetch init segments if
+    // necessary and ensure we're not in an ended state when we switch playlists.
 
-    this.mainSegmentLoader_.resetEverything(() => {
-      this.tech_.setCurrentTime(this.tech_.currentTime());
-    }); // don't need to reset audio as it is reset when media changes
+    this.resetMainLoaderReplaceSegments();
+  }
+  /**
+   * Sets the replaceUntil flag on the main segment soader to the buffered end
+   * and resets the main segment loaders properties.
+   */
+
+  resetMainLoaderReplaceSegments() {
+    const buffered = this.tech_.buffered();
+    const bufferedEnd = buffered.end(buffered.length - 1); // Set the replace segments flag to the buffered end, this forces fetchAtBuffer
+    // on the main loader to remain, false after the resetLoader call, until we have
+    // replaced all content buffered ahead of the currentTime.
+
+    this.mainSegmentLoader_.replaceSegmentsUntil = bufferedEnd;
+    this.mainSegmentLoader_.resetLoaderProperties();
+    this.mainSegmentLoader_.resetLoader();
   }
   /**
    * Begin playback.
@@ -47700,10 +48478,22 @@ class PlaylistController extends videojs.EventTarget {
       return this.mainPlaylistLoader_.load(isFinalRendition);
     }
     if (isFinalRendition) {
-      // Since we're on the final non-excluded playlist, and we're about to exclude
+      // If we're content steering, try other pathways.
+      if (this.main().contentSteering) {
+        const pathway = this.pathwayAttribute_(playlistToExclude); // Ignore at least 1 steering manifest refresh.
+
+        const reIncludeDelay = this.contentSteeringController_.steeringManifest.ttl * 1000;
+        this.contentSteeringController_.excludePathway(pathway);
+        this.excludeThenChangePathway_();
+        setTimeout(() => {
+          this.contentSteeringController_.addAvailablePathway(pathway);
+        }, reIncludeDelay);
+        return;
+      } // Since we're on the final non-excluded playlist, and we're about to exclude
       // it, instead of erring the player or retrying this playlist, clear out the current
       // exclusion list. This allows other playlists to be attempted in case any have been
       // fixed.
+
       let reincluded = false;
       playlists.forEach(playlist => {
         // skip current playlist which is about to be excluded
@@ -47848,14 +48638,11 @@ class PlaylistController extends videojs.EventTarget {
     // location
 
     this.mainSegmentLoader_.resetEverything();
-    this.mainSegmentLoader_.abort();
     if (this.mediaTypes_.AUDIO.activePlaylistLoader) {
       this.audioSegmentLoader_.resetEverything();
-      this.audioSegmentLoader_.abort();
     }
     if (this.mediaTypes_.SUBTITLES.activePlaylistLoader) {
       this.subtitleSegmentLoader_.resetEverything();
-      this.subtitleSegmentLoader_.abort();
     } // start segment loader loading in case they are paused
 
     this.load();
@@ -48044,6 +48831,7 @@ class PlaylistController extends videojs.EventTarget {
     this.decrypter_.terminate();
     this.mainPlaylistLoader_.dispose();
     this.mainSegmentLoader_.dispose();
+    this.contentSteeringController_.dispose();
     if (this.loadOnPlay_) {
       this.tech_.off('play', this.loadOnPlay_);
     }
@@ -48364,6 +49152,13 @@ class PlaylistController extends videojs.EventTarget {
   bufferHighWaterLine() {
     return Config.BUFFER_HIGH_WATER_LINE;
   }
+  addDateRangesToTextTrack_(dateRanges) {
+    createMetadataTrackIfNotExists(this.inbandTextTracks_, 'com.apple.streaming', this.tech_);
+    addDateRangeMetadata({
+      inbandTextTracks: this.inbandTextTracks_,
+      dateRanges
+    });
+  }
   addMetadataToTextTrack(dispatchType, metadataArray, videoDuration) {
     const timestampOffset = this.sourceUpdater_.videoBuffer ? this.sourceUpdater_.videoTimestampOffset() : this.sourceUpdater_.audioTimestampOffset(); // There's potentially an issue where we could double add metadata if there's a muxed
     // audio/video source with a metadata track, and an alt audio with a metadata track.
@@ -48376,6 +49171,110 @@ class PlaylistController extends videojs.EventTarget {
       timestampOffset,
       videoDuration
     });
+  }
+  pathwayAttribute_(playlist) {
+    return playlist.attributes['PATHWAY-ID'] || playlist.attributes.serviceLocation;
+  }
+  /**
+   * Initialize content steering listeners and apply the tag properties.
+   */
+
+  initContentSteeringController_() {
+    const initialMain = this.main();
+    if (!initialMain.contentSteering) {
+      return;
+    }
+    const updateSteeringValues = main => {
+      for (const playlist of main.playlists) {
+        this.contentSteeringController_.addAvailablePathway(this.pathwayAttribute_(playlist));
+      }
+      this.contentSteeringController_.assignTagProperties(main.uri, main.contentSteering);
+    };
+    updateSteeringValues(initialMain);
+    this.contentSteeringController_.on('content-steering', this.excludeThenChangePathway_.bind(this)); // We need to ensure we update the content steering values when a new
+    // manifest is loaded in live DASH with content steering.
+
+    if (this.sourceType_ === 'dash') {
+      this.mainPlaylistLoader_.on('mediaupdatetimeout', () => {
+        this.mainPlaylistLoader_.refreshMedia_(this.mainPlaylistLoader_.media().id); // clear past values
+
+        this.contentSteeringController_.abort();
+        this.contentSteeringController_.clearTTLTimeout_();
+        this.contentSteeringController_.clearAvailablePathways();
+        updateSteeringValues(this.main());
+      });
+    } // Do this at startup only, after that the steering requests are managed by the Content Steering class.
+    // DASH queryBeforeStart scenarios will be handled by the Content Steering class.
+
+    if (!this.contentSteeringController_.queryBeforeStart) {
+      this.tech_.one('canplay', () => {
+        this.contentSteeringController_.requestSteeringManifest();
+      });
+    }
+  }
+  /**
+   * Simple exclude and change playlist logic for content steering.
+   */
+
+  excludeThenChangePathway_() {
+    const currentPathway = this.contentSteeringController_.getPathway();
+    if (!currentPathway) {
+      return;
+    }
+    const main = this.main();
+    const playlists = main.playlists;
+    const ids = new Set();
+    let didEnablePlaylists = false;
+    Object.keys(playlists).forEach(key => {
+      const variant = playlists[key];
+      const pathwayId = this.pathwayAttribute_(variant);
+      const differentPathwayId = pathwayId && currentPathway !== pathwayId;
+      const steeringExclusion = variant.excludeUntil === Infinity && variant.lastExcludeReason_ === 'content-steering';
+      if (steeringExclusion && !differentPathwayId) {
+        delete variant.excludeUntil;
+        delete variant.lastExcludeReason_;
+        didEnablePlaylists = true;
+      }
+      const noExcludeUntil = !variant.excludeUntil && variant.excludeUntil !== Infinity;
+      const shouldExclude = !ids.has(variant.id) && differentPathwayId && noExcludeUntil;
+      if (!shouldExclude) {
+        return;
+      }
+      ids.add(variant.id);
+      variant.excludeUntil = Infinity;
+      variant.lastExcludeReason_ = 'content-steering'; // TODO: kind of spammy, maybe move this.
+
+      this.logger_(`excluding ${variant.id} for ${variant.lastExcludeReason_}`);
+    });
+    if (this.contentSteeringController_.manifestType_ === 'DASH') {
+      Object.keys(this.mediaTypes_).forEach(key => {
+        const type = this.mediaTypes_[key];
+        if (type.activePlaylistLoader) {
+          const currentPlaylist = type.activePlaylistLoader.media_; // Check if the current media playlist matches the current CDN
+
+          if (currentPlaylist && currentPlaylist.attributes.serviceLocation !== currentPathway) {
+            didEnablePlaylists = true;
+          }
+        }
+      });
+    }
+    if (didEnablePlaylists) {
+      this.changeSegmentPathway_();
+    }
+  }
+  /**
+   * Changes the current playlists for audio, video and subtitles after a new pathway
+   * is chosen from content steering.
+   */
+
+  changeSegmentPathway_() {
+    const nextPlaylist = this.selectPlaylist();
+    this.pauseLoading(); // Switch audio and text track playlists if necessary in DASH
+
+    if (this.contentSteeringController_.manifestType_ === 'DASH') {
+      this.switchMediaForDASHContentSteering_();
+    }
+    this.switchMedia_(nextPlaylist, 'content-steering');
   }
 }
 
@@ -48887,7 +49786,8 @@ class PlaybackWatcher {
     }
     let allowedEnd = seekable.end(seekable.length - 1) + SAFE_TIME_DELTA;
     const isLive = !playlist.endList;
-    if (isLive && allowSeeksWithinUnsafeLiveWindow) {
+    const isLLHLS = typeof playlist.partTargetDuration === 'number';
+    if (isLive && (isLLHLS || allowSeeksWithinUnsafeLiveWindow)) {
       allowedEnd = seekable.end(seekable.length - 1) + playlist.targetDuration * 3;
     }
     if (currentTime > allowedEnd) {
@@ -49124,10 +50024,10 @@ const initPlugin = function (player, options) {
 const reloadSourceOnError = function (options) {
   initPlugin(this, options);
 };
-var version$4 = "3.3.1";
-var version$3 = "6.3.0";
-var version$2 = "1.1.1";
-var version$1 = "6.0.0";
+var version$4 = "3.7.0";
+var version$3 = "7.0.1";
+var version$2 = "1.2.2";
+var version$1 = "7.1.0";
 var version = "4.0.1";
 
 /**
@@ -49686,13 +50586,14 @@ class VhsHandler extends Component {
     this.options_.useForcedSubtitles = this.options_.useForcedSubtitles || false;
     this.options_.useNetworkInformationApi = this.options_.useNetworkInformationApi || false;
     this.options_.useDtsForTimestampOffset = this.options_.useDtsForTimestampOffset || false;
+    this.options_.calculateTimestampOffsetForEachSegment = this.options_.calculateTimestampOffsetForEachSegment || false;
     this.options_.customTagParsers = this.options_.customTagParsers || [];
     this.options_.customTagMappers = this.options_.customTagMappers || [];
     this.options_.cacheEncryptionKeys = this.options_.cacheEncryptionKeys || false;
     this.options_.llhls = this.options_.llhls === false ? false : true;
     this.options_.bufferBasedABR = this.options_.bufferBasedABR || false;
     if (typeof this.options_.playlistExclusionDuration !== 'number') {
-      this.options_.playlistExclusionDuration = 5 * 60;
+      this.options_.playlistExclusionDuration = 60;
     }
     if (typeof this.options_.bandwidth !== 'number') {
       if (this.options_.useBandwidthFromLocalStorage) {
@@ -49722,7 +50623,7 @@ class VhsHandler extends Component {
 
     this.options_.enableLowInitialPlaylist = this.options_.enableLowInitialPlaylist && this.options_.bandwidth === Config.INITIAL_BANDWIDTH; // grab options passed to player.src
 
-    ['withCredentials', 'useDevicePixelRatio', 'limitRenditionByPlayerDimensions', 'bandwidth', 'customTagParsers', 'customTagMappers', 'cacheEncryptionKeys', 'playlistSelector', 'initialPlaylistSelector', 'bufferBasedABR', 'liveRangeSafeTimeDelta', 'llhls', 'useForcedSubtitles', 'useNetworkInformationApi', 'useDtsForTimestampOffset', 'exactManifestTimings', 'leastPixelDiffSelector'].forEach(option => {
+    ['withCredentials', 'useDevicePixelRatio', 'limitRenditionByPlayerDimensions', 'bandwidth', 'customTagParsers', 'customTagMappers', 'cacheEncryptionKeys', 'playlistSelector', 'initialPlaylistSelector', 'bufferBasedABR', 'liveRangeSafeTimeDelta', 'llhls', 'useForcedSubtitles', 'useNetworkInformationApi', 'useDtsForTimestampOffset', 'calculateTimestampOffsetForEachSegment', 'exactManifestTimings', 'leastPixelDiffSelector'].forEach(option => {
       if (typeof this.source_[option] !== 'undefined') {
         this.options_[option] = this.source_[option];
       }
@@ -50065,6 +50966,7 @@ class VhsHandler extends Component {
       if (excludedHDPlaylists.length) {
         videojs.log.warn('DRM keystatus changed to "output-restricted." Removing the following HD playlists ' + 'that will most likely fail to play and clearing the buffer. ' + 'This may be due to HDCP restrictions on the stream and the capabilities of the current device.', ...excludedHDPlaylists); // Clear the buffer before switching playlists, since it may already contain unplayable segments
 
+        this.playlistController_.mainSegmentLoader_.resetEverything();
         this.playlistController_.fastQualityChange_();
       }
     });

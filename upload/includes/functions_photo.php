@@ -7,6 +7,7 @@ function get_photo_fields()
 
 /**
  * function used to get photos
+ * @throws Exception
  */
 function get_photos($param)
 {
@@ -52,7 +53,7 @@ function plupload_photo_uploader()
  *
  * @param INT|array $photo_id
  * @return bool|string $directory
- * @throws \Exception
+ * @throws Exception
  */
 function get_photo_date_folder($photo_id)
 {
@@ -86,7 +87,7 @@ function get_photo_date_folder($photo_id)
         /**
          * Making sure file exists at path
          */
-        $path = PHOTOS_DIR . DIRECTORY_SEPARATOR . $directory . DIRECTORY_SEPARATOR . $photo['filename'] . '.' . $photo['ext'];
+        $path = DirPath::get('photos') . $directory . DIRECTORY_SEPARATOR . $photo['filename'] . '.' . $photo['ext'];
         $photo['file_path'] = $path;
         $photo = apply_filters($photo, 'checking_photo_at_structured_path');
 
@@ -163,7 +164,7 @@ function get_image_file($params)
         $directory .= '/';
     }
 
-    $path = PHOTOS_DIR . '/' . $directory;
+    $path = DirPath::get('photos') . $directory;
     $filename = $photo['filename'] . '%s.' . $photo['ext'];
 
     $files = glob($path . sprintf($filename, '*'));
@@ -175,10 +176,10 @@ function get_image_file($params)
             $thumb_type = $cbphoto->get_image_type($thumb_name);
 
             if ($with_original) {
-                $thumbs[] = (($with_path) ? PHOTOS_URL . '/' : '') . $directory . $thumb_name;
+                $thumbs[] = (($with_path) ? DirPath::getUrl('photos') : '') . $directory . $thumb_name;
             } else {
                 if (!empty($thumb_type)) {
-                    $thumbs[] = (($with_path) ? PHOTOS_URL . '/' : '') . $directory . $thumb_name;
+                    $thumbs[] = (($with_path) ? DirPath::getUrl('photos') : '') . $directory . $thumb_name;
                 }
             }
         }

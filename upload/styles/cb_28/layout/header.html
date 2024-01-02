@@ -35,22 +35,20 @@
 {$photoMode = lang('photos')|lower}
 {$channelsMode = lang('channels')|lower}
 
-<div id="quick_container">
-	<div id="quicklist_box"></div>
-</div> 
-
 <header id="header" class="clearfix">
 	<nav class="navbar navbar-default">
 		<div class="container-fluid">
 			<!-- Brand and toggle get grouped for better mobile display -->
 			<div class="header-holder">
 				<div class="navbar-header clearfix">
-					
-					<h1 class="logo">
+
+					{ANCHOR place="before_logo"}
+					<h1 class="logo no_select">
 						<a href="/">
 							<img src="{get_website_logo_path()}" class="img-responsive"/>
 						</a>
 					</h1>
+					{ANCHOR place="after_logo"}
 					
 					<button class="navbar-toggle" data-toggle="collapse" data-target="#bs-collapse">Menu<span class="icon-down-arrow"></span></button>
 					
@@ -65,6 +63,8 @@
 							<nav class="main-links">
 								{$head_menu=cb_menu()}
 								<ul>
+									{ANCHOR place="before_menu_top"}
+
 									{foreach $head_menu as $menu}
 										{if $menu@iteration < 6}
 											{if $menu.this|lower == 'home'}
@@ -79,7 +79,7 @@
 										{/if}
 									{/foreach}
 
-									{ANCHOR place="cb_28_head"}
+									{ANCHOR place="after_menu_top"}
 								</ul>
 							</nav>
 						</div>
@@ -106,13 +106,12 @@
 														<a class="s-types" href="#" valNow="{$stype}">{lang code ="{$stype}"}</a>
 													</li>
 												{/foreach}
-												{ANCHOR place="beat_search"}
+												{ANCHOR place="inside_search"}
 											</ul>
 										</div>
 										<input type="text" class="form-control" name="query" placeholder="{lang code='search_keyword_feed'}" value="{'query'|get_form_val:true}" id="query">
 										<input type="hidden" name="type" class="type" value="{$toSearch}" id="type">
 										<button tabindex="-1" type="submit" name="cbsearch" id="cbsearch" class="btn btn-default btn-search icon-search"></button>
-										{ANCHOR place="elastic_mode_search"}
 									</div>
 								</form><!-- form Ends -->
 							</div>
@@ -129,7 +128,7 @@
 										{if isSectionEnabled('photos') && config('enable_photo_file_upload') == 'yes'}
 										<li class="up_img"><a href="{link name='photo_upload'}">{lang code="upload_photo"}<i class="icon-photo visible-xs"></i></a></li>
 										{/if}
-										{ANCHOR place="aud_upload_link"}
+										{ANCHOR place="inside_upload"}
 									</ul>
 								</li>
 								{/if}
@@ -137,7 +136,7 @@
 								<li class="dropdown myaccount-dd">
 									<a href="javascript:void(0);" class="user-area dropdown-toggle" data-toggle="dropdown">
 										{$user_det = $userquery->get_user_details(user_id())}
-										<img src="{$userquery->getUserThumb($user_det)}" width="35" height="35"/>
+										<img src="{$userquery->getUserThumb($user_det)}" class="no_select" width="35" height="35"/>
 										<span>{display_clean($userquery->username|truncate:15)}</span>
 									</a>
 									<ul class="dropdown-menu">
@@ -148,7 +147,6 @@
 										{if isSectionEnabled('videos')}
 										<li class="hidden-xs"><a href="{link name='my_videos'}">{lang code="manage_videos"}</a></li>
 										{/if}
-										{ANCHOR place="head_audio_dropdown"}
 										{if isSectionEnabled('channels')}
 										<li><a href="{link name='channels'}">{lang code="view_channels"}</a></li>
 										<li><a href="/view_channel.php?user={display_clean($userquery->username)}">{lang code="my_channel"}</a></li>
@@ -156,7 +154,7 @@
 										{if isSectionEnabled('playlists')}
 										<li><a href="/manage_playlists.php?user={display_clean($userquery->username)}">{lang code="my_playlists"}</a></li>
 										{/if}
-										{ANCHOR place='premium_button_link'}
+										{ANCHOR place="inside_user_menu"}
 										<li class="divider"></li>
 										<li><a href="{link name='logout'}">{lang code="logout"}</a></li>
 									</ul>
@@ -189,8 +187,8 @@
 		$(".cbsearchtype a").on({
 			click: function(e){
 				e.preventDefault();
-				var prent_li = $(this).parents();
-				var theNewVal = $(this).attr('valNow');
+				let prent_li = $(this).parents();
+				let theNewVal = $(this).attr('valNow');
 				$('.type').val(theNewVal);
 				$('.cbsearchtype li').removeClass('active');
 				prent_li.addClass('active');
@@ -198,9 +196,43 @@
 		});
 
 		$('.s-types').on("click", function(){
-			var _this = $(this);
-			var text = _this.html();
+			let text = $(this).html();
 			$('.search-type').html(text);
 		});
+
+		$('#cbsearch').on("click", function(e){
+			e.preventDefault();
+			let searchQuery = $('#query').val();
+			let queryLen = searchQuery.length;
+			if (queryLen <= 2) {
+				let msg = '{lang code="search_too_short"}';
+				msg = msg.replace('%s', '<b>'+searchQuery+'</b>');
+				_cb.throwHeadMsg('warning', msg, 3000, true);
+			} else {
+				$('.search-form').submit();
+			}
+		});
+
+		window.addEventListener('resize', adaptRatioPlayer);
 	});
+	function adaptRatioPlayer(){
+		var div = document.querySelector('.player-holder');
+
+		if(div === null){
+			return;
+		}
+
+		const clean_class = div.className.replace(" fix_ratio ", "");
+
+		const ratio_window = window.innerWidth / window.innerHeight;
+		const ratio_div = document.querySelector('.player-holder video').videoWidth / document.querySelector('.player-holder video').videoHeight;
+
+		div.style.aspectRatio = ratio_div;
+
+		if ( ratio_window > ratio_div) {
+			div.className = clean_class+' fix_ratio '
+		} else {
+			div.className = clean_class
+		}
+	}
 </script>

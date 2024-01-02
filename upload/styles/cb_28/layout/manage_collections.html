@@ -58,9 +58,12 @@
 										{if $field.hint_1}<div class="hint">{$field.hint_1}</div>{/if}
 										{ANCHOR place=$field.anchor_before}
 										{$field.class="form-control"}
+										{if $field.id == 'collection_tags'}
+											<ul id="list_tags"></ul>
+										{/if}
 										{$formObj->createField($field)}
 										{if $field.hint_2}
-										<div class="hint">{$field.hint_2}</div>
+											<div class="hint">{$field.hint_2}</div>
                                         {/if}
 									</div>
 								{/foreach}
@@ -87,7 +90,7 @@
 						<div class="page-hidding"><h3>{lang code='add_new_collection'}</h3>
 						<div class="pull-right" style="margin-top:-30px;"><a class="btn btn-primary " href="/collections.php">{lang code="back_to_collection"}</a></div>
 						</div>
-						{if (has_access('allow_create_collection',false,$verify_logged_user))}
+						{if (has_access('allow_create_collection',false,false))}
 						<div class="upload_info">
 							<div class="account_form">
 								{foreach from=$fields item=field}
@@ -97,8 +100,12 @@
 										{ANCHOR place=$field.anchor_before}
 										{$field.class="form-control"}
 										{$formObj->createField($field)}
+										{if $field.id == 'collection_tags'}
+											<ul id="list_tags"></ul>
+										{/if}
 										{if $field.hint_2}
-										<div class="hint">{$field.hint_2}</div>{/if}
+											<div class="hint">{$field.hint_2}</div>
+										{/if}
 									</div>
 								{/foreach}
 								{foreach from=$other_fields item=field}
@@ -189,3 +196,7 @@
 	</div>
 </div>
 <div style="height:20px;"> </div>
+<script>
+	var available_tags = JSON.parse('{$available_tags|json_encode|replace:"'": "\'"}');
+</script>
+
