@@ -27,7 +27,7 @@ echo -ne " OK"
 
 echo ""
 echo -ne "Installing requiered elements..."
-apt install php8.1-fpm apache2 mariadb-server git php8.1-curl ffmpeg php8.1-mysqli php8.1-xml php8.1-mbstring php8.1-gd sendmail mediainfo --yes > /dev/null 2>&1
+apt install php8.1-fpm apache2 mariadb-server git php8.1-curl ffmpeg php8.1-mysqli php8.1-xml php8.1-mbstring libapache2-mod-php8.1 php8.1-gd sendmail mediainfo --yes > /dev/null 2>&1
 echo -ne " OK"
 
 echo ""
@@ -87,6 +87,7 @@ EOF
 sed -i "s/DOMAINNAME/${DOMAIN_NAME}/g" /etc/apache2/sites-available/001-clipbucket
 sed -i "s/PHPVERSION/${PHP_VERSION}/g" /etc/apache2/sites-available/001-clipbucket
 ln -s /etc/apache2/sites-available/001-clipbucket /etc/apache2/sites-enabled/
+sudo a2enmod rewrite
 systemctl restart apache2 > /dev/null
 echo -ne " OK"
 
