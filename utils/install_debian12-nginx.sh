@@ -67,17 +67,17 @@ esac
 echo ""
 echo -ne "Configuring Nginx Vhost..."
 rm -f /etc/apache2/sites-enabled/default
-cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket DOMAINNAME
+cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket.conf DOMAINNAME
 <VirtualHost *:80>
   ServerName DOMAINNAME
-  DocumentRoot "/srv/http/clipbucket/"
+  DocumentRoot "/srv/http/clipbucket/upload"
   
   AllowEncodedSlashes On
   
   php_value upload_max_filesize 10000M
   php_value post_max_size 10000M
   
-  <Directory "/srv/http/clipbucket/">
+  <Directory "/srv/http/clipbucket/upload">
     AllowOverride all
     Require all granted
   </Directory>
@@ -86,7 +86,7 @@ EOF
 
 sed -i "s/DOMAINNAME/${DOMAIN_NAME}/g" /etc/apache2/sites-available/001-clipbucket
 sed -i "s/PHPVERSION/${PHP_VERSION}/g" /etc/apache2/sites-available/001-clipbucket
-ln -s /etc/apache2/sites-available/001-clipbucket /etc/apache2/sites-enabled/
+ln -s /etc/apache2/sites-available/001-clipbucket.conf /etc/apache2/sites-enabled/.conf
 sudo a2enmod rewrite
 systemctl restart apache2 > /dev/null
 echo -ne " OK"
