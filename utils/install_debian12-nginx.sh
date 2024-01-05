@@ -76,6 +76,7 @@ cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket.conf DOMAINNAME
   
   php_value upload_max_filesize 10000M
   php_value post_max_size 10000M
+  php_value max_execution_time 7200
   
   <Directory "/srv/http/clipbucket/upload">
     AllowOverride all
@@ -84,9 +85,9 @@ cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket.conf DOMAINNAME
 </VirtualHost>
 EOF
 
-sed -i "s/DOMAINNAME/${DOMAIN_NAME}/g" /etc/apache2/sites-available/001-clipbucket
-sed -i "s/PHPVERSION/${PHP_VERSION}/g" /etc/apache2/sites-available/001-clipbucket
-ln -s /etc/apache2/sites-available/001-clipbucket.conf /etc/apache2/sites-enabled/.conf
+sed -i "s/DOMAINNAME/${DOMAIN_NAME}/g" /etc/apache2/sites-available/001-clipbucket.conf
+sed -i "s/PHPVERSION/8.1/g" /etc/apache2/sites-available/001-clipbucket.conf
+ln -s /etc/apache2/sites-available/001-clipbucket.conf /etc/apache2/sites-enabled/001-clipbucket.conf
 sudo a2enmod rewrite
 systemctl restart apache2 > /dev/null
 echo -ne " OK"
