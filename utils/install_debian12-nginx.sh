@@ -67,7 +67,7 @@ esac
 echo ""
 echo -ne "Configuring Nginx Vhost..."
 rm -f /etc/apache2/sites-enabled/default
-cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket.conf DOMAINNAME
+cat << 'EOF' > /etc/apache2/sites-available/001-clipbucket.conf
 <VirtualHost *:80>
   ServerName DOMAINNAME
   DocumentRoot "/srv/http/clipbucket/upload"
